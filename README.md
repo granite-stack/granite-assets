@@ -46,7 +46,7 @@ uv add granite-assets
 ### Development
 
 ```bash
-git clone https://github.com/your-org/granite-assets.git
+git clone https://github.com/granite-stack/granite-assets.git
 cd granite-assets
 uv sync
 ```
