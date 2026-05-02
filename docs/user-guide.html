@@ -1,0 +1,330 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Guide &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/user-guide.html" />
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Presigned URLs" href="presigned-urls.html" />
+    <link rel="prev" title="Quick Start" href="quickstart.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#architecture-overview">Architecture Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-concepts">Key Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#saving-assets">Saving Assets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reading-asset-metadata">Reading Asset Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#copy-and-move">Copy and Move</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deleting-assets">Deleting Assets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fastapi-integration">FastAPI Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#local-nginx-backend-details">Local Nginx Backend Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#s3-backend-details">S3 Backend Details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">User Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/user-guide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="user-guide">
+<h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading"></a></h1>
+<p>This guide covers the core concepts, the full API surface, and integration
+patterns for both the local and S3 backends.</p>
+<section id="architecture-overview">
+<h2>Architecture Overview<a class="headerlink" href="#architecture-overview" title="Link to this heading"></a></h2>
+<p>Granite Assets has three layers:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">IAssetRepository</span></code> (protocol)</dt><dd><p>The structural interface your application depends on.  No inheritance
+required — any class implementing the methods qualifies at runtime
+(<code class="docutils literal notranslate"><span class="pre">&#64;runtime_checkable</span></code> Protocol).</p>
+</dd>
+<dt>Configuration dataclasses</dt><dd><p><code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepositoryConfig</span></code> and <code class="docutils literal notranslate"><span class="pre">S3AssetRepositoryConfig</span></code> are
+frozen-like dataclasses that hold all wiring details.  Pass one to
+<code class="docutils literal notranslate"><span class="pre">build_asset_repository()</span></code> and you get the right implementation back.</p>
+</dd>
+<dt>Concrete repositories</dt><dd><p><code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepository</span></code> — writes files to a directory tree served
+by any static HTTP server.
+<code class="docutils literal notranslate"><span class="pre">S3AssetRepository</span></code> — reads/writes from AWS S3 (or any S3-compatible store).</p>
+</dd>
+</dl>
+<p>All methods are <strong>synchronous</strong>.  Use them inside a thread pool (e.g.
+<code class="docutils literal notranslate"><span class="pre">asyncio.to_thread</span></code> / <code class="docutils literal notranslate"><span class="pre">run_in_executor</span></code>) when calling from an async context
+such as FastAPI.</p>
+</section>
+<section id="key-concepts">
+<h2>Key Concepts<a class="headerlink" href="#key-concepts" title="Link to this heading"></a></h2>
+<dl>
+<dt><strong>Asset key</strong></dt><dd><p>A forward-slash separated path that uniquely identifies an asset within the
+repository (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;invoices/2024/inv-001.pdf&quot;</span></code>).  Keys must <strong>not</strong> start
+with a leading slash.  The key is the stable identifier you store in your
+database — the physical location (filesystem path, S3 key with prefix) is
+an internal detail of the repository.</p>
+</dd>
+<dt><strong>AssetVisibility</strong></dt><dd><p><code class="docutils literal notranslate"><span class="pre">PUBLIC</span></code> — the asset is accessible via a stable, non-expiring URL.
+<code class="docutils literal notranslate"><span class="pre">PRIVATE</span></code> — the asset requires a time-limited signed URL.</p>
+<p>Visibility is set at write time in <code class="docutils literal notranslate"><span class="pre">AssetSaveRequest</span></code> and is reflected in
+<code class="docutils literal notranslate"><span class="pre">AssetSaveResult</span></code> and <code class="docutils literal notranslate"><span class="pre">AssetDescriptor</span></code>.</p>
+</dd>
+<dt><strong>AssetSaveRequest</strong></dt><dd><p>The input model for <code class="docutils literal notranslate"><span class="pre">save()</span></code>.  The <code class="docutils literal notranslate"><span class="pre">source</span></code> field accepts either a
+<code class="docutils literal notranslate"><span class="pre">BinaryIO</span></code> stream or <code class="docutils literal notranslate"><span class="pre">bytes</span></code>.  Call <code class="docutils literal notranslate"><span class="pre">request.open_source()</span></code> to always
+get a stream regardless of which was provided.</p>
+</dd>
+<dt><strong>AssetSaveResult</strong></dt><dd><p>Returned by <code class="docutils literal notranslate"><span class="pre">save()</span></code>.  Contains the <code class="docutils literal notranslate"><span class="pre">key</span></code>, a backend-specific
+<code class="docutils literal notranslate"><span class="pre">backend_ref</span></code> (e.g. S3 ETag, absolute file path), <code class="docutils literal notranslate"><span class="pre">content_length</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">checksum</span></code>.</p>
+</dd>
+<dt><strong>AssetDescriptor</strong></dt><dd><p>Returned by <code class="docutils literal notranslate"><span class="pre">get_descriptor()</span></code>.  Provides metadata without downloading
+the asset body — equivalent to an HTTP HEAD request.</p>
+</dd>
+<dt><strong>AssetAccessUrl</strong></dt><dd><p>Returned by <code class="docutils literal notranslate"><span class="pre">build_public_url()</span></code> and <code class="docutils literal notranslate"><span class="pre">build_download_url()</span></code>.  The
+<code class="docutils literal notranslate"><span class="pre">url</span></code> field is always populated.  <code class="docutils literal notranslate"><span class="pre">expires_at</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code> for
+permanent public URLs.  Check <code class="docutils literal notranslate"><span class="pre">url.is_permanent</span></code> as a convenience.</p>
+</dd>
+<dt><strong>UploadUrlResult</strong></dt><dd><p>Returned by <code class="docutils literal notranslate"><span class="pre">build_upload_url()</span></code>.  Contains the presigned <code class="docutils literal notranslate"><span class="pre">url</span></code>, the
+HTTP <code class="docutils literal notranslate"><span class="pre">method</span></code> (always <code class="docutils literal notranslate"><span class="pre">&quot;PUT&quot;</span></code>), required <code class="docutils literal notranslate"><span class="pre">headers</span></code>, <code class="docutils literal notranslate"><span class="pre">expires_at</span></code>,
+and the <code class="docutils literal notranslate"><span class="pre">key</span></code> that will be created.</p>
+</dd>
+</dl>
+</section>
+<section id="saving-assets">
+<h2>Saving Assets<a class="headerlink" href="#saving-assets" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetSaveRequest</span><span class="p">,</span> <span class="n">AssetVisibility</span>
+
+<span class="c1"># From an open file</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;report.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">&quot;reports/q1-2024.pdf&quot;</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/pdf&quot;</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;q1-2024.pdf&quot;</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;uploader&quot;</span><span class="p">:</span> <span class="s2">&quot;user-123&quot;</span><span class="p">},</span>
+    <span class="p">))</span>
+
+<span class="c1"># From bytes</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;thumbnails/user-42.jpg&quot;</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="n">thumbnail_bytes</span><span class="p">,</span>
+    <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+    <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
+<span class="p">))</span>
+
+<span class="c1"># Prevent overwriting an existing asset</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;config/settings.json&quot;</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="n">json_bytes</span><span class="p">,</span>
+    <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>   <span class="c1"># raises AssetError if the key already exists</span>
+<span class="p">))</span>
+</pre></div>
+</div>
+</section>
+<section id="reading-asset-metadata">
+<h2>Reading Asset Metadata<a class="headerlink" href="#reading-asset-metadata" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check existence cheaply</span>
+<span class="k">if</span> <span class="n">repo</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;reports/q1-2024.pdf&quot;</span><span class="p">):</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">get_descriptor</span><span class="p">(</span><span class="s2">&quot;reports/q1-2024.pdf&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">desc</span><span class="o">.</span><span class="n">content_type</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">desc</span><span class="o">.</span><span class="n">content_length</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">desc</span><span class="o">.</span><span class="n">last_modified</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">desc</span><span class="o">.</span><span class="n">visibility</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="copy-and-move">
+<h2>Copy and Move<a class="headerlink" href="#copy-and-move" title="Link to this heading"></a></h2>
+<p>Copy and move are cheap server-side operations — the library never downloads
+the asset body just to re-upload it.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Copy to another key</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;reports/q1-2024.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;archive/2024/q1.pdf&quot;</span><span class="p">)</span>
+
+<span class="c1"># Move (rename)</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="s2">&quot;reports/draft.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;reports/final.pdf&quot;</span><span class="p">)</span>
+
+<span class="c1"># Both accept overwrite control</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;src.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;dst.jpg&quot;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="deleting-assets">
+<h2>Deleting Assets<a class="headerlink" href="#deleting-assets" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;thumbnails/user-42.jpg&quot;</span><span class="p">)</span>  <span class="c1"># raises AssetNotFoundError if missing</span>
+</pre></div>
+</div>
+</section>
+<section id="fastapi-integration">
+<h2>FastAPI Integration<a class="headerlink" href="#fastapi-integration" title="Link to this heading"></a></h2>
+<p>Since all repository methods are synchronous, wrap them in
+<code class="docutils literal notranslate"><span class="pre">asyncio.to_thread</span></code> inside async endpoints:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span><span class="p">,</span> <span class="n">UploadFile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetSaveRequest</span><span class="p">,</span> <span class="n">AssetVisibility</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+
+<span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/upload&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">upload_file</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span>
+        <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">,</span>
+        <span class="n">AssetSaveRequest</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;uploads/</span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">content</span><span class="p">,</span>
+            <span class="n">content_type</span><span class="o">=</span><span class="n">file</span><span class="o">.</span><span class="n">content_type</span> <span class="ow">or</span> <span class="s2">&quot;application/octet-stream&quot;</span><span class="p">,</span>
+            <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
+            <span class="n">filename</span><span class="o">=</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">dl_url</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span>
+        <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="mi">600</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;url&quot;</span><span class="p">:</span> <span class="n">dl_url</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="s2">&quot;expires_at&quot;</span><span class="p">:</span> <span class="n">dl_url</span><span class="o">.</span><span class="n">expires_at</span><span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="local-nginx-backend-details">
+<h2>Local Nginx Backend Details<a class="headerlink" href="#local-nginx-backend-details" title="Link to this heading"></a></h2>
+<p>Files are organised under two sub-directories inside <code class="docutils literal notranslate"><span class="pre">storage_path</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;public_prefix&gt;/&lt;key&gt;</span></code> — publicly served.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;private_prefix&gt;/&lt;key&gt;</span></code> — should be protected by Nginx
+<code class="docutils literal notranslate"><span class="pre">auth_request</span></code> or similar.</p></li>
+</ul>
+<p>Presigned URLs are <strong>not supported</strong> by this backend.  Calling
+<code class="docutils literal notranslate"><span class="pre">build_download_url()</span></code> on a public asset returns a permanent URL (same as
+<code class="docutils literal notranslate"><span class="pre">build_public_url()</span></code>).  Calling <code class="docutils literal notranslate"><span class="pre">build_upload_url()</span></code> raises
+<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code>.</p>
+<p>Example Nginx configuration:</p>
+<div class="highlight-nginx notranslate"><div class="highlight"><pre><span></span><span class="k">location</span><span class="w"> </span><span class="s">/assets/public/</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">alias</span><span class="w"> </span><span class="s">/var/www/assets/public/</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">location</span><span class="w"> </span><span class="s">/assets/private/</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">internal</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">alias</span><span class="w"> </span><span class="s">/var/www/assets/private/</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="s3-backend-details">
+<h2>S3 Backend Details<a class="headerlink" href="#s3-backend-details" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>ACLs</strong> — the library sets <code class="docutils literal notranslate"><span class="pre">ACL='public-read'</span></code> for public objects when
+saving.  Ensure your bucket allows ACLs or manage access via bucket policy
+instead and set <code class="docutils literal notranslate"><span class="pre">public_base_url</span></code> to your CDN domain.</p></li>
+<li><p><strong>Custom endpoint</strong> — set <code class="docutils literal notranslate"><span class="pre">endpoint_url</span></code> for MinIO, LocalStack, or any
+S3-compatible store.</p></li>
+<li><p><strong>Credentials</strong> — pass <code class="docutils literal notranslate"><span class="pre">access_key_id</span></code> / <code class="docutils literal notranslate"><span class="pre">secret_access_key</span></code> directly or
+leave them as <code class="docutils literal notranslate"><span class="pre">None</span></code> to use the standard boto3 credential chain (environment
+variables, instance roles, <code class="docutils literal notranslate"><span class="pre">~/.aws/credentials</span></code>).</p></li>
+<li><p><strong>Key prefix</strong> — <code class="docutils literal notranslate"><span class="pre">key_prefix</span></code> is prepended to the logical key before writing
+to S3 and stripped when reading back.  Application code always works with the
+unprefixed logical key.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="quickstart.html" class="btn btn-neutral float-left" title="Quick Start" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="presigned-urls.html" class="btn btn-neutral float-right" title="Presigned URLs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

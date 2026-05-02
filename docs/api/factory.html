@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>granite_assets.factory &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/api/factory.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="granite_assets.repositories" href="repositories.html" />
+    <link rel="prev" title="granite_assets.exceptions" href="exceptions.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="granite_assets.html">granite_assets package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html">granite_assets.contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">granite_assets.models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enums.html">granite_assets.enums</a></li>
+<li class="toctree-l2"><a class="reference internal" href="exceptions.html">granite_assets.exceptions</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">granite_assets.factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#granite_assets.factory.build_asset_repository"><code class="docutils literal notranslate"><span class="pre">build_asset_repository()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="repositories.html">granite_assets.repositories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#module-granite_assets">Top-level module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API Reference</a></li>
+      <li class="breadcrumb-item active">granite_assets.factory</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/factory.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="granite-assets-factory">
+<h1>granite_assets.factory<a class="headerlink" href="#granite-assets-factory" title="Link to this heading"></a></h1>
+<p>The factory function inspects the configuration type and returns the correct
+<code class="docutils literal notranslate"><span class="pre">IAssetRepository</span></code> implementation.  It uses <code class="docutils literal notranslate"><span class="pre">&#64;overload</span></code> signatures so that
+type checkers (mypy, pyright) can infer the concrete return type when the
+config type is known statically.</p>
+<p id="module-granite_assets.factory">Lightweight factory for building asset repositories from config objects.</p>
+<p>The factory pattern is intentionally minimal: it avoids string-based dispatch
+and keeps full type safety — the return type is narrowed to the concrete class
+so IDEs and type checkers benefit without needing <code class="docutils literal notranslate"><span class="pre">cast</span></code>.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="granite_assets.factory.build_asset_repository">
+<span class="sig-prename descclassname"><span class="pre">granite_assets.factory.</span></span><span class="sig-name descname"><span class="pre">build_asset_repository</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.LocalNginxAssetRepositoryConfig" title="granite_assets.models.LocalNginxAssetRepositoryConfig"><span class="pre">LocalNginxAssetRepositoryConfig</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository" title="granite_assets.repositories.local_nginx.LocalNginxAssetRepository"><span class="pre">LocalNginxAssetRepository</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/factory.html#build_asset_repository"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.factory.build_asset_repository" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">granite_assets.factory.</span></span><span class="sig-name descname"><span class="pre">build_asset_repository</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.S3AssetRepositoryConfig" title="granite_assets.models.S3AssetRepositoryConfig"><span class="pre">S3AssetRepositoryConfig</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="granite_assets.html#granite_assets.S3AssetRepository" title="granite_assets.S3AssetRepository"><span class="pre">S3AssetRepository</span></a></span></span></dt>
+<dd><p>Instantiate the correct repository for the given configuration object.</p>
+<p>The returned type is narrowed by overloads — type checkers will infer the
+concrete class when the config type is known at the call site.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config</strong> – A configuration dataclass.  Pass a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">LocalNginxAssetRepositoryConfig</span></code> for the local backend
+or a <code class="xref py py-class docutils literal notranslate"><span class="pre">S3AssetRepositoryConfig</span></code> for AWS S3.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A ready-to-use repository instance.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#TypeError" title="(in Python v3.14)"><strong>TypeError</strong></a> – If the config type is not recognised.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ImportError" title="(in Python v3.14)"><strong>ImportError</strong></a> – If the S3 extra is not installed and an S3 config is given.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span>
+    <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span><span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-bucket&quot;</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="exceptions.html" class="btn btn-neutral float-left" title="granite_assets.exceptions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="repositories.html" class="btn btn-neutral float-right" title="granite_assets.repositories" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

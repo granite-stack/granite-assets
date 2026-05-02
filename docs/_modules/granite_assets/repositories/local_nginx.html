@@ -1,0 +1,481 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>granite_assets.repositories.local_nginx &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/_modules/granite_assets/repositories/local_nginx.html" />
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">granite_assets.repositories.local_nginx</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for granite_assets.repositories.local_nginx</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Local filesystem asset repository served by Nginx (or any static HTTP server).</span>
+
+<span class="sd">Design constraints</span>
+<span class="sd">------------------</span>
+<span class="sd">* Nginx itself is responsible for serving files; this library only writes/reads</span>
+<span class="sd">  the filesystem.</span>
+<span class="sd">* Public assets are placed under ``&lt;storage_path&gt;/&lt;public_prefix&gt;/`` and</span>
+<span class="sd">  served at ``&lt;base_url&gt;/&lt;public_prefix&gt;/``.</span>
+<span class="sd">* Private assets are placed under ``&lt;storage_path&gt;/&lt;private_prefix&gt;/``.  It is</span>
+<span class="sd">  the operator&#39;s responsibility to configure Nginx ``auth_request`` or</span>
+<span class="sd">  ``internal`` directives to protect this directory.  This library does *not*</span>
+<span class="sd">  and cannot enforce access control at the HTTP layer.</span>
+<span class="sd">* Signed download/upload URLs are **not supported**.  The backend raises</span>
+<span class="sd">  ``AssetAccessNotSupportedError`` for those operations so that callers know</span>
+<span class="sd">  they must route access through their application layer instead.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.contracts</span><span class="w"> </span><span class="kn">import</span> <span class="n">IAssetRepository</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AssetAccessNotSupportedError</span><span class="p">,</span>
+    <span class="n">AssetConfigurationError</span><span class="p">,</span>
+    <span class="n">AssetError</span><span class="p">,</span>
+    <span class="n">AssetNotFoundError</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AssetAccessUrl</span><span class="p">,</span>
+    <span class="n">AssetDescriptor</span><span class="p">,</span>
+    <span class="n">AssetSaveRequest</span><span class="p">,</span>
+    <span class="n">AssetSaveResult</span><span class="p">,</span>
+    <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span>
+    <span class="n">UploadUrlResult</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_BACKEND_NAME</span> <span class="o">=</span> <span class="s2">&quot;LocalNginxAssetRepository&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Asset key must not start with &#39;/&#39;: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LocalNginxAssetRepository</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Asset repository backed by the local filesystem.</span>
+
+<span class="sd">    Files are organised under two sub-directories:</span>
+
+<span class="sd">    * ``&lt;storage_path&gt;/&lt;public_prefix&gt;/`` – publicly served assets.</span>
+<span class="sd">    * ``&lt;storage_path&gt;/&lt;private_prefix&gt;/`` – private assets (Nginx-protected).</span>
+
+<span class="sd">    Public URLs are constructed by joining ``base_url``, the relevant prefix,</span>
+<span class="sd">    and the logical key.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        config = LocalNginxAssetRepositoryConfig(</span>
+<span class="sd">            storage_path=&quot;/var/www/assets&quot;,</span>
+<span class="sd">            base_url=&quot;https://cdn.example.com/assets&quot;,</span>
+<span class="sd">        )</span>
+<span class="sd">        repo = LocalNginxAssetRepository(config)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.__init__">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">storage_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_config</span><span class="p">()</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Internal helpers</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">base_url</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetConfigurationError</span><span class="p">(</span><span class="s2">&quot;base_url must not be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">storage_path</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetConfigurationError</span><span class="p">(</span><span class="s2">&quot;storage_path must not be empty&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_full_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_prefix</span>
+            <span class="k">if</span> <span class="n">visibility</span> <span class="o">==</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span>
+            <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">private_prefix</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root</span> <span class="o">/</span> <span class="n">prefix</span> <span class="o">/</span> <span class="n">key</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_md5_of_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">digest</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">fh</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+                <span class="n">digest</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">digest</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Write operations</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.save">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.save">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetSaveResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the asset to disk.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetError: If the file already exists and *overwrite* is False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">overwrite</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">overwrite</span>
+        <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Asset already exists and overwrite is disabled: </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="si">!r}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">create_directories</span><span class="p">:</span>
+            <span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Parent directory does not exist: </span><span class="si">{</span><span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="s2">&quot;(set create_directories=True to auto-create)&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">stream</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">open_source</span><span class="p">()</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">dest</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+                    <span class="n">total</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to write asset </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+        <span class="n">checksum</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;md5:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_md5_of_file</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">AssetSaveResult</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">backend_ref</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">dest</span><span class="p">),</span>
+            <span class="n">content_length</span><span class="o">=</span><span class="n">total</span><span class="p">,</span>
+            <span class="n">checksum</span><span class="o">=</span><span class="n">checksum</span><span class="p">,</span>
+            <span class="n">visibility</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.delete">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.delete">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove the asset file from disk.</span>
+
+<span class="sd">        Tries both visibility prefixes so the caller does not need to know</span>
+<span class="sd">        where the file is stored.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">visibility</span> <span class="ow">in</span> <span class="n">AssetVisibility</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to delete asset </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+                <span class="k">return</span>
+        <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.copy">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.copy">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy a file on disk using shutil (server-side, no re-upload).&quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">dest_key</span><span class="p">)</span>
+
+        <span class="n">src_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_existing_path</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+        <span class="c1"># Infer visibility from which sub-directory the source lives in</span>
+        <span class="n">visibility</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_infer_visibility</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span>
+        <span class="n">dest_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">dest_key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">dest_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Destination key already exists: </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">create_directories</span><span class="p">:</span>
+            <span class="n">dest_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy2</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.move">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.move">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Move (rename) a file on disk.&quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">dest_key</span><span class="p">)</span>
+
+        <span class="n">src_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_existing_path</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+        <span class="n">visibility</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_infer_visibility</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span>
+        <span class="n">dest_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">dest_key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">dest_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Destination key already exists: </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">create_directories</span><span class="p">:</span>
+            <span class="n">dest_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">src_path</span><span class="p">),</span> <span class="n">dest_path</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Query operations</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.exists">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.exists">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the key exists under either visibility prefix.&quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">AssetVisibility</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.get_descriptor">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.get_descriptor">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_descriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetDescriptor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return file metadata without reading the file body.&quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_existing_path</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">stat</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
+        <span class="n">visibility</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_infer_visibility</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">AssetDescriptor</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">content_length</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
+            <span class="n">visibility</span><span class="o">=</span><span class="n">visibility</span><span class="p">,</span>
+            <span class="n">last_modified</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># URL construction</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.build_public_url">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.build_public_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a permanent public URL.</span>
+
+<span class="sd">        Only valid for assets stored with ``AssetVisibility.PUBLIC``.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: If the asset is private (no signed</span>
+<span class="sd">                URL support in this backend).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="c1"># We only guarantee that a public URL exists for public assets.</span>
+        <span class="c1"># We can still build the URL even if the file doesn&#39;t exist on disk;</span>
+        <span class="c1"># callers that need to verify existence should call ``exists`` first.</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_public_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_prefix</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.build_download_url">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.build_download_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a download URL.</span>
+
+<span class="sd">        For public assets, returns the same permanent URL.  For private assets,</span>
+<span class="sd">        raises ``AssetAccessNotSupportedError`` because this backend cannot</span>
+<span class="sd">        generate signed URLs — the calling application must implement its own</span>
+<span class="sd">        token-based download endpoint.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="c1"># Check which prefix holds this asset (or fall back to public URL)</span>
+        <span class="n">pub_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pub_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+        <span class="n">priv_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">priv_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
+                <span class="n">_BACKEND_NAME</span><span class="p">,</span>
+                <span class="s2">&quot;build_download_url (private asset)&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="c1"># Key not found; still raise unsupported for consistency</span>
+        <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
+            <span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;build_download_url (private asset)&quot;</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.build_upload_url">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.build_upload_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_upload_url</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadUrlResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Not supported by this backend.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: Always.  The local filesystem has no</span>
+<span class="sd">                HTTP upload mechanism.  Route uploads through your application</span>
+<span class="sd">                layer and call ``save`` directly.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span><span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;build_upload_url&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepository.resolve_access">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.resolve_access">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the best available URL for the asset.</span>
+
+<span class="sd">        For public assets, returns a permanent URL.  For private assets on this</span>
+<span class="sd">        backend, raises ``AssetAccessNotSupportedError``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">pub_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pub_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+        <span class="n">priv_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">priv_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
+                <span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;resolve_access (private asset)&quot;</span>
+            <span class="p">)</span>
+        <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Private helpers</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_existing_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the Path for *key* in whatever prefix it exists, or raise.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">visibility</span> <span class="ow">in</span> <span class="n">AssetVisibility</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">return</span> <span class="n">path</span>
+        <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_infer_visibility</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetVisibility</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Determine visibility by checking which prefix the path falls under.&quot;&quot;&quot;</span>
+        <span class="n">pub_root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_prefix</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">pub_root</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span></div>
+
+
+
+<span class="c1"># Verify structural compatibility at import time (cheap, dev-friendly)</span>
+<span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">LocalNginxAssetRepository</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
+<span class="n">_</span><span class="p">:</span> <span class="n">IAssetRepository</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">LocalNginxAssetRepository</span><span class="p">)</span>  <span class="c1"># type: ignore[assignment]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

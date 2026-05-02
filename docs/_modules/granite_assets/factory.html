@@ -1,0 +1,184 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>granite_assets.factory &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/_modules/granite_assets/factory.html" />
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">granite_assets.factory</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for granite_assets.factory</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Lightweight factory for building asset repositories from config objects.</span>
+
+<span class="sd">The factory pattern is intentionally minimal: it avoids string-based dispatch</span>
+<span class="sd">and keeps full type safety — the return type is narrowed to the concrete class</span>
+<span class="sd">so IDEs and type checkers benefit without needing ``cast``.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">overload</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span>
+    <span class="n">S3AssetRepositoryConfig</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.repositories.local_nginx</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalNginxAssetRepository</span>
+
+<span class="n">AnyConfig</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">]</span>
+
+
+<span class="nd">@overload</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_asset_repository</span><span class="p">(</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LocalNginxAssetRepository</span><span class="p">:</span> <span class="o">...</span>
+
+
+<span class="nd">@overload</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;S3AssetRepository&quot;</span><span class="p">:</span> <span class="o">...</span>  <span class="c1"># type: ignore[misc]  # noqa: F821</span>
+
+
+<div class="viewcode-block" id="build_asset_repository">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.build_asset_repository">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">AnyConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiate the correct repository for the given configuration object.</span>
+
+<span class="sd">    The returned type is narrowed by overloads — type checkers will infer the</span>
+<span class="sd">    concrete class when the config type is known at the call site.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: A configuration dataclass.  Pass a</span>
+<span class="sd">                :class:`LocalNginxAssetRepositoryConfig` for the local backend</span>
+<span class="sd">                or a :class:`S3AssetRepositoryConfig` for AWS S3.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A ready-to-use repository instance.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If the config type is not recognised.</span>
+<span class="sd">        ImportError: If the S3 extra is not installed and an S3 config is given.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        repo = build_asset_repository(</span>
+<span class="sd">            S3AssetRepositoryConfig(bucket=&quot;my-bucket&quot;, region=&quot;eu-west-1&quot;)</span>
+<span class="sd">        )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">):</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.repositories.s3</span><span class="w"> </span><span class="kn">import</span> <span class="n">S3AssetRepository</span>  <span class="c1"># noqa: PLC0415</span>
+        <span class="k">return</span> <span class="n">S3AssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Unsupported configuration type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">!r}</span><span class="s2">. &quot;</span>
+        <span class="s2">&quot;Expected LocalNginxAssetRepositoryConfig or S3AssetRepositoryConfig.&quot;</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

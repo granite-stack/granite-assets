@@ -1,0 +1,377 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>granite_assets.contracts &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/api/contracts.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="granite_assets.models" href="models.html" />
+    <link rel="prev" title="granite_assets package" href="granite_assets.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="granite_assets.html">granite_assets package</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">granite_assets.contracts</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#design-notes">Design notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository"><code class="docutils literal notranslate"><span class="pre">IAssetRepository</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.__init__"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.build_download_url"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.build_download_url()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.build_public_url"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.build_public_url()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.build_upload_url"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.build_upload_url()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.copy"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.copy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.delete"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.delete()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.exists"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.exists()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.get_descriptor"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.get_descriptor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.move"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.move()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.resolve_access"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.resolve_access()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.contracts.IAssetRepository.save"><code class="docutils literal notranslate"><span class="pre">IAssetRepository.save()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">granite_assets.models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enums.html">granite_assets.enums</a></li>
+<li class="toctree-l2"><a class="reference internal" href="exceptions.html">granite_assets.exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="factory.html">granite_assets.factory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repositories.html">granite_assets.repositories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#module-granite_assets">Top-level module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API Reference</a></li>
+      <li class="breadcrumb-item active">granite_assets.contracts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/contracts.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="granite-assets-contracts">
+<h1>granite_assets.contracts<a class="headerlink" href="#granite-assets-contracts" title="Link to this heading"></a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">IAssetRepository</span></code> protocol is the central abstraction of granite-assets.
+Because it uses <code class="docutils literal notranslate"><span class="pre">&#64;runtime_checkable</span></code>, you can verify implementations with
+<code class="docutils literal notranslate"><span class="pre">isinstance()</span></code> at runtime.</p>
+<p id="module-granite_assets.contracts">Repository contract (Protocol) for granite-assets.</p>
+<p>Defines the <code class="docutils literal notranslate"><span class="pre">IAssetRepository</span></code> structural interface.  Any class that
+implements these methods is considered a valid repository without needing to
+inherit from this Protocol explicitly (structural subtyping / duck typing).</p>
+<section id="design-notes">
+<h2>Design notes<a class="headerlink" href="#design-notes" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">save</span></code> receives a stream-based request so that large files are never fully
+buffered in application memory.</p></li>
+<li><p>URL construction methods are pure and <em>do not</em> hit the network; they only
+derive a URL string from the key and configuration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_descriptor</span></code> is a lightweight <code class="docutils literal notranslate"><span class="pre">HEAD</span></code>-like call that retrieves metadata
+without downloading the asset body.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">copy</span></code> and <code class="docutils literal notranslate"><span class="pre">move</span></code> are provided because they map directly to cheap
+server-side operations in most backends (S3 server-side copy, local
+<code class="docutils literal notranslate"><span class="pre">shutil.copy2</span></code> + <code class="docutils literal notranslate"><span class="pre">unlink</span></code>).  Omitting them would force callers to
+download + re-upload unnecessarily.</p></li>
+<li><p>All methods are <strong>synchronous</strong>.  The library is intended to run inside
+existing sync or async applications where sync I/O inside a thread pool is
+the normal pattern for blocking operations (FastAPI <code class="docutils literal notranslate"><span class="pre">run_in_executor</span></code>,
+Celery tasks, Django views, etc.).  Async variants can be added in a future
+minor version without breaking the current API.</p></li>
+</ul>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">granite_assets.contracts.</span></span><span class="sig-name descname"><span class="pre">IAssetRepository</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Protocol" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Protocol</span></code></a></p>
+<p>Structural interface for asset repositories.</p>
+<p>Implementations must provide all methods below.  The <code class="docutils literal notranslate"><span class="pre">&#64;runtime_checkable</span></code>
+decorator allows <code class="docutils literal notranslate"><span class="pre">isinstance(repo,</span> <span class="pre">IAssetRepository)</span></code> checks at runtime,
+which is useful in dependency-injection containers and factory helpers.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.build_download_url">
+<span class="sig-name descname"><span class="pre">build_download_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.build_download_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.build_download_url" title="Link to this definition"></a></dt>
+<dd><p>Return a time-limited URL suitable for downloading the asset.</p>
+<p>For public assets this may return the same permanent URL.  For private
+assets it returns a signed URL that expires after <em>ttl_seconds</em>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key of the asset.</p></li>
+<li><p><strong>ttl_seconds</strong> – Override the default TTL from configuration.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">AssetAccessUrl</span></code> with an <code class="docutils literal notranslate"><span class="pre">expires_at</span></code> for private assets.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetAccessNotSupportedError" title="granite_assets.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – If signed download URLs are not
+    supported by this backend.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.build_public_url">
+<span class="sig-name descname"><span class="pre">build_public_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.build_public_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.build_public_url" title="Link to this definition"></a></dt>
+<dd><p>Return a permanent, publicly accessible URL for the asset.</p>
+<p>Only valid for assets stored with <code class="docutils literal notranslate"><span class="pre">AssetVisibility.PUBLIC</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> – Logical key of the asset.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A permanent <code class="xref py py-class docutils literal notranslate"><span class="pre">AssetAccessUrl</span></code> (<code class="docutils literal notranslate"><span class="pre">expires_at</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>).</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetAccessNotSupportedError" title="granite_assets.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – If the backend or asset visibility does
+    not support public URLs.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.build_upload_url">
+<span class="sig-name descname"><span class="pre">build_upload_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.UploadUrlResult" title="granite_assets.models.UploadUrlResult"><span class="pre">UploadUrlResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.build_upload_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.build_upload_url" title="Link to this definition"></a></dt>
+<dd><p>Return a pre-signed URL that allows a client to upload an asset.</p>
+<p>The client should send the file as the body of an HTTP PUT request to
+the returned URL, including the headers specified in
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">UploadUrlResult.headers</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key under which the asset will be stored.</p></li>
+<li><p><strong>content_type</strong> – MIME type that the client must declare in the upload.</p></li>
+<li><p><strong>ttl_seconds</strong> – Override the default TTL from configuration.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">UploadUrlResult</span></code> with the upload URL and required headers.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetAccessNotSupportedError" title="granite_assets.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – If pre-signed upload URLs are not
+    supported by this backend (e.g. local filesystem).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.copy" title="Link to this definition"></a></dt>
+<dd><p>Copy an asset to a new key without downloading it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source_key</strong> – Key of the asset to copy.</p></li>
+<li><p><strong>dest_key</strong> – Key of the destination.</p></li>
+<li><p><strong>overwrite</strong> – Whether to overwrite an existing destination key.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetNotFoundError" title="granite_assets.AssetNotFoundError"><strong>AssetNotFoundError</strong></a> – If <em>source_key</em> does not exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.delete"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.delete" title="Link to this definition"></a></dt>
+<dd><p>Remove an asset from the backend.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> – Logical key of the asset to remove.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetNotFoundError" title="granite_assets.AssetNotFoundError"><strong>AssetNotFoundError</strong></a> – If the key does not exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.exists">
+<span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.exists" title="Link to this definition"></a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">True</span></code> if the asset exists in the backend.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> – Logical key to check.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.get_descriptor">
+<span class="sig-name descname"><span class="pre">get_descriptor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetDescriptor" title="granite_assets.models.AssetDescriptor"><span class="pre">AssetDescriptor</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.get_descriptor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.get_descriptor" title="Link to this definition"></a></dt>
+<dd><p>Retrieve metadata for an existing asset without downloading it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> – Logical key of the asset.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Metadata descriptor.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetNotFoundError" title="granite_assets.AssetNotFoundError"><strong>AssetNotFoundError</strong></a> – If the key does not exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.move">
+<span class="sig-name descname"><span class="pre">move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.move" title="Link to this definition"></a></dt>
+<dd><p>Move (rename) an asset.</p>
+<p>Equivalent to <code class="docutils literal notranslate"><span class="pre">copy</span></code> followed by <code class="docutils literal notranslate"><span class="pre">delete</span></code> on the source.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source_key</strong> – Key of the asset to move.</p></li>
+<li><p><strong>dest_key</strong> – Key of the destination.</p></li>
+<li><p><strong>overwrite</strong> – Whether to overwrite an existing destination key.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetNotFoundError" title="granite_assets.AssetNotFoundError"><strong>AssetNotFoundError</strong></a> – If <em>source_key</em> does not exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.resolve_access">
+<span class="sig-name descname"><span class="pre">resolve_access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.resolve_access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.resolve_access" title="Link to this definition"></a></dt>
+<dd><p>Convenience helper that returns the best available URL for the asset.</p>
+<p>For public assets returns the permanent public URL; for private assets
+returns a signed download URL.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key of the asset.</p></li>
+<li><p><strong>ttl_seconds</strong> – TTL hint for signed URLs (ignored for public assets).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The most appropriate <code class="xref py py-class docutils literal notranslate"><span class="pre">AssetAccessUrl</span></code> for this asset.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.contracts.IAssetRepository.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveRequest" title="granite_assets.models.AssetSaveRequest"><span class="pre">AssetSaveRequest</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveResult" title="granite_assets.models.AssetSaveResult"><span class="pre">AssetSaveResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/contracts.html#IAssetRepository.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.contracts.IAssetRepository.save" title="Link to this definition"></a></dt>
+<dd><p>Persist an asset to the backend.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>request</strong> – Fully described save request including stream, key,
+content type and visibility.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Metadata about the stored asset.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetError" title="granite_assets.AssetError"><strong>AssetError</strong></a> – If writing fails (I/O error, permission, etc.).</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="granite_assets.html" class="btn btn-neutral float-left" title="granite_assets package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="models.html" class="btn btn-neutral float-right" title="granite_assets.models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
