@@ -11,11 +11,3 @@ API Reference
    api/exceptions
    api/factory
    api/repositories
-
-Top-level module
-----------------
-
-.. automodule:: granite_assets
-   :members:
-   :undoc-members:
-   :show-inheritance:

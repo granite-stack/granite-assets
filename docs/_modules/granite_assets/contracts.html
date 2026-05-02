@@ -123,7 +123,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository">[docs]</a>
 <span class="nd">@runtime_checkable</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">IAssetRepository</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Structural interface for asset repositories.</span>
@@ -138,7 +138,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="IAssetRepository.save">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.save">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.save">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetSaveResult</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist an asset to the backend.</span>
 
@@ -156,7 +156,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository.delete">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.delete">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.delete">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove an asset from the backend.</span>
 
@@ -170,7 +170,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository.copy">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.copy">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.copy">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy an asset to a new key without downloading it.</span>
 
@@ -186,7 +186,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository.move">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.move">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.move">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Move (rename) an asset.</span>
 
@@ -208,7 +208,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="IAssetRepository.exists">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.exists">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.exists">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``True`` if the asset exists in the backend.</span>
 
@@ -219,7 +219,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository.get_descriptor">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.get_descriptor">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.get_descriptor">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_descriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetDescriptor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve metadata for an existing asset without downloading it.</span>
 
@@ -240,7 +240,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="IAssetRepository.build_public_url">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.build_public_url">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.build_public_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a permanent, publicly accessible URL for the asset.</span>
 
@@ -260,7 +260,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository.build_download_url">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.build_download_url">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.build_download_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a time-limited URL suitable for downloading the asset.</span>
 
@@ -282,7 +282,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository.build_upload_url">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.build_upload_url">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.build_upload_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_upload_url</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -311,7 +311,7 @@
 
 
 <div class="viewcode-block" id="IAssetRepository.resolve_access">
-<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.resolve_access">[docs]</a>
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.resolve_access">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenience helper that returns the best available URL for the asset.</span>
 

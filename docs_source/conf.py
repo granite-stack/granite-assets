@@ -44,6 +44,7 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
 napoleon_include_private_with_doc = False
+napoleon_use_ivar = True
 
 # Intersphinx mapping
 intersphinx_mapping = {
@@ -55,5 +56,9 @@ intersphinx_mapping = {
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_static_path = []
 html_baseurl = '/granite-assets/'
+
+suppress_warnings = ['ref.python']
+autodoc_default_flags = []
+autodoc_member_order = 'bysource'

@@ -2,7 +2,7 @@
 
 Public API
 ----------
-Import the pieces you need directly from ``granite_assets``:
+Import the pieces you need directly from ``granite_assets``::
 
     from granite_assets import (
         IAssetRepository,

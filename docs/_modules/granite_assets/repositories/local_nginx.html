@@ -135,7 +135,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">LocalNginxAssetRepository</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Asset repository backed by the local filesystem.</span>
 
@@ -157,7 +157,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.__init__">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.__init__">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span> <span class="o">=</span> <span class="n">config</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">storage_path</span><span class="p">)</span>
@@ -198,7 +198,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.save">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.save">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.save">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetSaveResult</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the asset to disk.</span>
 
@@ -243,7 +243,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.delete">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.delete">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.delete">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove the asset file from disk.</span>
 
@@ -263,7 +263,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.copy">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.copy">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.copy">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy a file on disk using shutil (server-side, no re-upload).&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
@@ -284,7 +284,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.move">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.move">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.move">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Move (rename) a file on disk.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
@@ -308,7 +308,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.exists">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.exists">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.exists">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the key exists under either visibility prefix.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
@@ -318,7 +318,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.get_descriptor">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.get_descriptor">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.get_descriptor">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_descriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetDescriptor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return file metadata without reading the file body.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
@@ -338,7 +338,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.build_public_url">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.build_public_url">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_public_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a permanent public URL.</span>
 
@@ -357,7 +357,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.build_download_url">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.build_download_url">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a download URL.</span>
 
@@ -385,7 +385,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.build_upload_url">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.build_upload_url">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_upload_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_upload_url</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -403,7 +403,7 @@
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.resolve_access">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.LocalNginxAssetRepository.resolve_access">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.resolve_access">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the best available URL for the asset.</span>
 
