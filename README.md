@@ -1,9 +1,10 @@
 # granite-assets
 
 [![PyPI](https://img.shields.io/pypi/v/granite-assets.svg)](https://pypi.org/project/granite-assets/)
-[![Python](https://img.shields.io/pypi/pyversions/granite-assets.svg)](https://pypi.org/project/granite-assets/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Typed](https://img.shields.io/badge/typing-py.typed-informational)](src/granite_assets/py.typed)
+
 
 A portable, framework-agnostic Python library for managing public and private assets across different storage backends — local filesystem (Nginx-served) and AWS S3, with support for custom backends via a clean protocol interface.
 
