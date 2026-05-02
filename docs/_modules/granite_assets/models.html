@@ -1,0 +1,358 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>granite_assets.models &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/_modules/granite_assets/models.html" />
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">granite_assets.models</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for granite_assets.models</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Domain models and configuration dataclasses for granite-assets.</span>
+
+<span class="sd">All models use ``slots=True`` for memory efficiency and to prevent accidental</span>
+<span class="sd">attribute creation. ``frozen=True`` is applied to value objects that should</span>
+<span class="sd">be immutable after construction; mutable builder-style objects stay unfrozen.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">BinaryIO</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Input / request models</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="AssetSaveRequest">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.AssetSaveRequest">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AssetSaveRequest</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;All the information needed to persist a new asset.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        key:          Logical key that uniquely identifies the asset within the</span>
+<span class="sd">                      repository (e.g. ``&quot;invoices/2024/inv-001.pdf&quot;``).  It must</span>
+<span class="sd">                      not contain a leading slash.</span>
+<span class="sd">        source:       Readable binary stream with the asset content.</span>
+<span class="sd">        content_type: MIME type (e.g. ``&quot;application/pdf&quot;``).</span>
+<span class="sd">        visibility:   Whether the asset will be publicly accessible or private.</span>
+<span class="sd">        filename:     Original human-readable filename, stored as metadata.</span>
+<span class="sd">        content_length: Byte size of the asset when known; used to set</span>
+<span class="sd">                      ``Content-Length`` headers on upload.</span>
+<span class="sd">        checksum:     Optional integrity hash (e.g. ``&quot;md5:abc123&quot;``).</span>
+<span class="sd">        metadata:     Arbitrary key/value pairs forwarded to the backend (e.g.</span>
+<span class="sd">                      S3 object metadata or extended file attributes).</span>
+<span class="sd">        overwrite:    If *False* and the key already exists the backend should</span>
+<span class="sd">                      raise ``AssetError``.  Implementations may expose a</span>
+<span class="sd">                      per-request override even when the global config differs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">BinaryIO</span> <span class="o">|</span> <span class="nb">bytes</span>
+    <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span> <span class="o">=</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">content_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">checksum</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="AssetSaveRequest.open_source">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.AssetSaveRequest.open_source">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">open_source</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BinaryIO</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a readable binary stream regardless of whether *source* is</span>
+<span class="sd">        already a stream or a raw ``bytes`` object.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span></div>
+</div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Output / result models</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="AssetSaveResult">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.AssetSaveResult">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AssetSaveResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returned by :meth:`IAssetRepository.save` after a successful write.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        key:            The logical key under which the asset was stored.</span>
+<span class="sd">        backend_ref:    Backend-specific identifier (e.g. S3 ETag, local path).</span>
+<span class="sd">        content_length: Byte size as recorded by the backend.</span>
+<span class="sd">        checksum:       Integrity hash as returned or calculated by the backend.</span>
+<span class="sd">        visibility:     Visibility at the time of saving.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">backend_ref</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">content_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">checksum</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span> <span class="o">=</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span></div>
+
+
+
+<div class="viewcode-block" id="AssetDescriptor">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.AssetDescriptor">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AssetDescriptor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Metadata about an asset that already exists in the repository.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        key:            Logical key.</span>
+<span class="sd">        content_type:   MIME type.</span>
+<span class="sd">        content_length: Size in bytes.</span>
+<span class="sd">        visibility:     Current visibility.</span>
+<span class="sd">        last_modified:  Last modification timestamp (backend-provided).</span>
+<span class="sd">        checksum:       Integrity hash when available.</span>
+<span class="sd">        metadata:       Backend-provided key/value metadata.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">content_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span> <span class="o">=</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span>
+    <span class="n">last_modified</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">checksum</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="AssetAccessUrl">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.AssetAccessUrl">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A resolved URL for accessing an asset.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        url:        The full URL string.</span>
+<span class="sd">        expires_at: Expiry timestamp for signed URLs; *None* for permanent URLs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">expires_at</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_permanent</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;``True`` when the URL has no expiry (i.e. public permanent URL).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">expires_at</span> <span class="ow">is</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="UploadUrlResult">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.UploadUrlResult">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">UploadUrlResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a pre-signed upload URL request.</span>
+
+<span class="sd">    For S3, the chosen mechanism is a **presigned PUT** (single-part upload up</span>
+<span class="sd">    to 5 GB).  A presigned POST would allow more server-side validation but adds</span>
+<span class="sd">    complexity for the common case; PUT is simpler to consume from any HTTP</span>
+<span class="sd">    client and is the idiomatic choice for most REST-style integrations.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        url:         The pre-signed URL the client should PUT to.</span>
+<span class="sd">        method:      HTTP method to use (always ``&quot;PUT&quot;`` for this library).</span>
+<span class="sd">        headers:     Headers that the client *must* include in the request</span>
+<span class="sd">                     (e.g. ``Content-Type``, ``Content-Length``).</span>
+<span class="sd">        expires_at:  When the URL stops being valid.</span>
+<span class="sd">        key:         The logical key that will be created after a successful PUT.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="n">expires_at</span><span class="p">:</span> <span class="n">datetime</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Configuration models</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="LocalNginxAssetRepositoryConfig">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.LocalNginxAssetRepositoryConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LocalNginxAssetRepositoryConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for :class:`LocalNginxAssetRepository`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        storage_path:       Absolute path on disk where assets are written.</span>
+<span class="sd">        base_url:           Root URL at which Nginx (or any static server) serves</span>
+<span class="sd">                            the ``storage_path`` directory.</span>
+<span class="sd">        public_prefix:      Sub-path appended to both the storage path and the</span>
+<span class="sd">                            URL for public assets (default ``&quot;public&quot;``).</span>
+<span class="sd">        private_prefix:     Sub-path for private assets.  Since local Nginx has no</span>
+<span class="sd">                            signed-URL support these files can only be served if</span>
+<span class="sd">                            you protect the directory at the Nginx level.</span>
+<span class="sd">        overwrite:          Global overwrite default; can be overridden per request.</span>
+<span class="sd">        create_directories: Automatically create missing intermediate directories.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">storage_path</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">base_url</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">public_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span>
+    <span class="n">private_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;private&quot;</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">create_directories</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+
+<div class="viewcode-block" id="S3AssetRepositoryConfig">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.S3AssetRepositoryConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">S3AssetRepositoryConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for :class:`S3AssetRepository`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        bucket:           S3 bucket name.</span>
+<span class="sd">        region:           AWS region (e.g. ``&quot;eu-west-1&quot;``).</span>
+<span class="sd">        public_base_url:  Optional CDN or custom-domain base URL for public assets.</span>
+<span class="sd">                          When set, ``build_public_url`` will use it instead of the</span>
+<span class="sd">                          native S3 endpoint.</span>
+<span class="sd">        key_prefix:       Optional prefix prepended to every logical key before</span>
+<span class="sd">                          writing to S3 (e.g. ``&quot;uploads/&quot;``).</span>
+<span class="sd">        presign_ttl_seconds: Default TTL for presigned URLs.</span>
+<span class="sd">        endpoint_url:     Custom endpoint for S3-compatible stores (MinIO, etc.).</span>
+<span class="sd">        access_key_id:    Explicit AWS credentials (optional; falls back to the</span>
+<span class="sd">                          standard boto3 credential chain).</span>
+<span class="sd">        secret_access_key: Explicit AWS credentials.</span>
+<span class="sd">        session_token:    STS session token when using temporary credentials.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">bucket</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">region</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">public_base_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">key_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">presign_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span>
+    <span class="n">endpoint_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">access_key_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">secret_access_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">session_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="S3AssetRepositoryConfig.presign_ttl">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.S3AssetRepositoryConfig.presign_ttl">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">presign_ttl</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">timedelta</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenience accessor returning the TTL as a :class:`timedelta`.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">presign_ttl_seconds</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

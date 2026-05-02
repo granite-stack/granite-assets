@@ -1,0 +1,252 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Presigned URLs &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/presigned-urls.html" />
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Implementing a Custom Repository" href="implementing-repository.html" />
+    <link rel="prev" title="User Guide" href="user-guide.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="user-guide.html">User Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Presigned URLs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#upload-flow-s3">Upload Flow (S3)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generating-a-presigned-upload-url">Generating a Presigned Upload URL</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#client-side-upload-javascript">Client-side Upload (JavaScript)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generating-a-presigned-download-url">Generating a Presigned Download URL</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#security-considerations">Security Considerations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Presigned URLs</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/presigned-urls.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="presigned-urls">
+<h1>Presigned URLs<a class="headerlink" href="#presigned-urls" title="Link to this heading"></a></h1>
+<p>Presigned URLs let a client upload or download assets directly from S3 without
+routing the binary data through your application server.  This reduces bandwidth
+costs and latency for large files.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Presigned upload URLs (<code class="docutils literal notranslate"><span class="pre">build_upload_url</span></code>) are <strong>only supported by the S3
+backend</strong>.  <code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepository</span></code> raises
+<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code> if you call this method.</p>
+<p>Presigned download URLs (<code class="docutils literal notranslate"><span class="pre">build_download_url</span></code>) on a local-nginx public
+asset return a permanent URL rather than an error.</p>
+</div>
+<section id="upload-flow-s3">
+<h2>Upload Flow (S3)<a class="headerlink" href="#upload-flow-s3" title="Link to this heading"></a></h2>
+<p>The client-side upload flow has three steps:</p>
+<ol class="arabic simple">
+<li><p><strong>Request a presigned URL</strong> from your backend API.</p></li>
+<li><p><strong>PUT the file directly to S3</strong> using the returned URL and headers.</p></li>
+<li><p><strong>Confirm the upload</strong> — your backend can poll <code class="docutils literal notranslate"><span class="pre">exists()</span></code> or receive an S3
+event notification.</p></li>
+</ol>
+</section>
+<section id="generating-a-presigned-upload-url">
+<h2>Generating a Presigned Upload URL<a class="headerlink" href="#generating-a-presigned-upload-url" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">,</span> <span class="n">build_asset_repository</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-bucket&quot;</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
+    <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">900</span><span class="p">,</span>   <span class="c1"># 15 minutes</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="n">upload</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;uploads/user-42/avatar.jpg&quot;</span><span class="p">,</span>
+    <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+    <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span>   <span class="c1"># override config default</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>        <span class="c1"># https://my-bucket.s3.eu-west-1.amazonaws.com/...</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">method</span><span class="p">)</span>     <span class="c1"># &quot;PUT&quot;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>    <span class="c1"># {&quot;Content-Type&quot;: &quot;image/jpeg&quot;, ...}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span> <span class="c1"># datetime (UTC)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>        <span class="c1"># &quot;uploads/user-42/avatar.jpg&quot;</span>
+</pre></div>
+</div>
+<p>The JSON you would return from a FastAPI endpoint:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">PresignedUploadResponse</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="n">expires_at</span><span class="p">:</span> <span class="n">datetime</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/presign/upload&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">presign_upload</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PresignedUploadResponse</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span>
+        <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">content_type</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">PresignedUploadResponse</span><span class="p">(</span>
+        <span class="n">url</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">url</span><span class="p">,</span>
+        <span class="n">method</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
+        <span class="n">headers</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span>
+        <span class="n">expires_at</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">expires_at</span><span class="p">,</span>
+        <span class="n">key</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="client-side-upload-javascript">
+<h2>Client-side Upload (JavaScript)<a class="headerlink" href="#client-side-upload-javascript" title="Link to this heading"></a></h2>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="nx">method</span><span class="p">,</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/presign/upload?&#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;uploads/user-42/avatar.jpg&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">content_type</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;image/jpeg&#39;</span><span class="p">,</span>
+<span class="p">})).</span><span class="nx">then</span><span class="p">(</span><span class="nx">r</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">json</span><span class="p">());</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="nx">method</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nx">fileBlob</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="c1">// Notify your backend that the upload is complete</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/media/confirm&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">}),</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="generating-a-presigned-download-url">
+<h2>Generating a Presigned Download URL<a class="headerlink" href="#generating-a-presigned-download-url" title="Link to this heading"></a></h2>
+<p>For private assets you need a time-limited URL to allow a specific user to
+download the file:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
+    <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>   <span class="c1"># 5 minutes</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>        <span class="c1"># https://... (valid for 5 minutes)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span> <span class="c1"># datetime (UTC)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># False</span>
+</pre></div>
+</div>
+</section>
+<section id="security-considerations">
+<h2>Security Considerations<a class="headerlink" href="#security-considerations" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Validate key input</strong> on your backend before issuing a presigned URL.
+Never pass user-controlled strings directly as the S3 key without sanitising
+path separators and disallowed characters.</p></li>
+<li><p><strong>Set the shortest TTL</strong> that is practical for your use case.</p></li>
+<li><p><strong>Content-Type enforcement</strong> — the <code class="docutils literal notranslate"><span class="pre">Content-Type</span></code> header is part of the
+signed request.  A client that sends a different content-type will receive
+a <code class="docutils literal notranslate"><span class="pre">403</span> <span class="pre">Forbidden</span></code> from S3.</p></li>
+<li><p><strong>Restrict presigned URLs by IP</strong> when possible using S3 bucket policy
+conditions (<code class="docutils literal notranslate"><span class="pre">aws:SourceIp</span></code>).</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="user-guide.html" class="btn btn-neutral float-left" title="User Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="implementing-repository.html" class="btn btn-neutral float-right" title="Implementing a Custom Repository" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,360 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>granite_assets.contracts &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/_modules/granite_assets/contracts.html" />
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">granite_assets.contracts</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for granite_assets.contracts</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Repository contract (Protocol) for granite-assets.</span>
+
+<span class="sd">Defines the ``IAssetRepository`` structural interface.  Any class that</span>
+<span class="sd">implements these methods is considered a valid repository without needing to</span>
+<span class="sd">inherit from this Protocol explicitly (structural subtyping / duck typing).</span>
+
+<span class="sd">Design notes</span>
+<span class="sd">------------</span>
+<span class="sd">* ``save`` receives a stream-based request so that large files are never fully</span>
+<span class="sd">  buffered in application memory.</span>
+<span class="sd">* URL construction methods are pure and *do not* hit the network; they only</span>
+<span class="sd">  derive a URL string from the key and configuration.</span>
+<span class="sd">* ``get_descriptor`` is a lightweight ``HEAD``-like call that retrieves metadata</span>
+<span class="sd">  without downloading the asset body.</span>
+<span class="sd">* ``copy`` and ``move`` are provided because they map directly to cheap</span>
+<span class="sd">  server-side operations in most backends (S3 server-side copy, local</span>
+<span class="sd">  ``shutil.copy2`` + ``unlink``).  Omitting them would force callers to</span>
+<span class="sd">  download + re-upload unnecessarily.</span>
+<span class="sd">* All methods are **synchronous**.  The library is intended to run inside</span>
+<span class="sd">  existing sync or async applications where sync I/O inside a thread pool is</span>
+<span class="sd">  the normal pattern for blocking operations (FastAPI ``run_in_executor``,</span>
+<span class="sd">  Celery tasks, Django views, etc.).  Async variants can be added in a future</span>
+<span class="sd">  minor version without breaking the current API.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">runtime_checkable</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AssetAccessUrl</span><span class="p">,</span>
+    <span class="n">AssetDescriptor</span><span class="p">,</span>
+    <span class="n">AssetSaveRequest</span><span class="p">,</span>
+    <span class="n">AssetSaveResult</span><span class="p">,</span>
+    <span class="n">UploadUrlResult</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="IAssetRepository">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository">[docs]</a>
+<span class="nd">@runtime_checkable</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">IAssetRepository</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Structural interface for asset repositories.</span>
+
+<span class="sd">    Implementations must provide all methods below.  The ``@runtime_checkable``</span>
+<span class="sd">    decorator allows ``isinstance(repo, IAssetRepository)`` checks at runtime,</span>
+<span class="sd">    which is useful in dependency-injection containers and factory helpers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Write operations</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="IAssetRepository.save">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.save">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetSaveResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist an asset to the backend.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            request: Fully described save request including stream, key,</span>
+<span class="sd">                     content type and visibility.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Metadata about the stored asset.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetError: If writing fails (I/O error, permission, etc.).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="IAssetRepository.delete">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.delete">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove an asset from the backend.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Logical key of the asset to remove.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetNotFoundError: If the key does not exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="IAssetRepository.copy">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.copy">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy an asset to a new key without downloading it.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            source_key: Key of the asset to copy.</span>
+<span class="sd">            dest_key:   Key of the destination.</span>
+<span class="sd">            overwrite:  Whether to overwrite an existing destination key.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetNotFoundError: If *source_key* does not exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="IAssetRepository.move">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.move">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Move (rename) an asset.</span>
+
+<span class="sd">        Equivalent to ``copy`` followed by ``delete`` on the source.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            source_key: Key of the asset to move.</span>
+<span class="sd">            dest_key:   Key of the destination.</span>
+<span class="sd">            overwrite:  Whether to overwrite an existing destination key.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetNotFoundError: If *source_key* does not exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Query operations</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="IAssetRepository.exists">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.exists">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``True`` if the asset exists in the backend.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Logical key to check.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="IAssetRepository.get_descriptor">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.get_descriptor">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_descriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetDescriptor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve metadata for an existing asset without downloading it.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Logical key of the asset.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Metadata descriptor.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetNotFoundError: If the key does not exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># URL construction</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="IAssetRepository.build_public_url">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.build_public_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a permanent, publicly accessible URL for the asset.</span>
+
+<span class="sd">        Only valid for assets stored with ``AssetVisibility.PUBLIC``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Logical key of the asset.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A permanent :class:`AssetAccessUrl` (``expires_at`` is ``None``).</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: If the backend or asset visibility does</span>
+<span class="sd">                not support public URLs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="IAssetRepository.build_download_url">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.build_download_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a time-limited URL suitable for downloading the asset.</span>
+
+<span class="sd">        For public assets this may return the same permanent URL.  For private</span>
+<span class="sd">        assets it returns a signed URL that expires after *ttl_seconds*.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:         Logical key of the asset.</span>
+<span class="sd">            ttl_seconds: Override the default TTL from configuration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`AssetAccessUrl` with an ``expires_at`` for private assets.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: If signed download URLs are not</span>
+<span class="sd">                supported by this backend.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="IAssetRepository.build_upload_url">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.build_upload_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_upload_url</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadUrlResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a pre-signed URL that allows a client to upload an asset.</span>
+
+<span class="sd">        The client should send the file as the body of an HTTP PUT request to</span>
+<span class="sd">        the returned URL, including the headers specified in</span>
+<span class="sd">        :attr:`UploadUrlResult.headers`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:          Logical key under which the asset will be stored.</span>
+<span class="sd">            content_type: MIME type that the client must declare in the upload.</span>
+<span class="sd">            ttl_seconds:  Override the default TTL from configuration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`UploadUrlResult` with the upload URL and required headers.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: If pre-signed upload URLs are not</span>
+<span class="sd">                supported by this backend (e.g. local filesystem).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="IAssetRepository.resolve_access">
+<a class="viewcode-back" href="../../api/granite_assets.html#granite_assets.IAssetRepository.resolve_access">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenience helper that returns the best available URL for the asset.</span>
+
+<span class="sd">        For public assets returns the permanent public URL; for private assets</span>
+<span class="sd">        returns a signed download URL.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:         Logical key of the asset.</span>
+<span class="sd">            ttl_seconds: TTL hint for signed URLs (ignored for public assets).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The most appropriate :class:`AssetAccessUrl` for this asset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

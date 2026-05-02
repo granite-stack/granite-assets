@@ -1,0 +1,276 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quick Start &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/quickstart.html" />
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="User Guide" href="user-guide.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Start</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#local-filesystem-nginx">Local Filesystem (Nginx)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#aws-s3">AWS S3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-the-factory">Using the Factory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#error-handling">Error Handling</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Quick Start</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/quickstart.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="quick-start">
+<h1>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h1>
+<p>This page shows the two most common setups — local filesystem and AWS S3 — so you
+can be productive in minutes.</p>
+<section id="local-filesystem-nginx">
+<h2>Local Filesystem (Nginx)<a class="headerlink" href="#local-filesystem-nginx" title="Link to this heading"></a></h2>
+<p>Good for development, single-server deployments, or any setup where a static web
+server (Nginx, Apache, Caddy …) serves files directly from disk.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span>
+    <span class="n">LocalNginxAssetRepository</span><span class="p">,</span>
+    <span class="n">AssetSaveRequest</span><span class="p">,</span>
+    <span class="n">AssetVisibility</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># 1. Configure the repository.</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/var/www/assets&quot;</span><span class="p">,</span>      <span class="c1"># absolute path on disk</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com/assets&quot;</span><span class="p">,</span>  <span class="c1"># how Nginx serves it</span>
+    <span class="n">public_prefix</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span>             <span class="c1"># default; public files go here</span>
+    <span class="n">private_prefix</span><span class="o">=</span><span class="s2">&quot;private&quot;</span><span class="p">,</span>           <span class="c1"># private files (Nginx-protected)</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="c1"># 2. Save an asset.</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span>
+    <span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>            <span class="c1"># avatars/user-42.jpg</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">content_length</span><span class="p">)</span> <span class="c1"># bytes written</span>
+
+<span class="c1"># 3. Build a public URL.</span>
+<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>   <span class="c1"># https://cdn.example.com/assets/public/avatars/user-42.jpg</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span>  <span class="c1"># True</span>
+
+<span class="c1"># 4. Check existence.</span>
+<span class="k">assert</span> <span class="n">repo</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+
+<span class="c1"># 5. Get metadata (no download).</span>
+<span class="n">descriptor</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">get_descriptor</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">descriptor</span><span class="o">.</span><span class="n">content_length</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">descriptor</span><span class="o">.</span><span class="n">last_modified</span><span class="p">)</span>
+
+<span class="c1"># 6. Copy and move.</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;avatars/backup/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="s2">&quot;avatars/backup/user-42.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;archive/user-42.jpg&quot;</span><span class="p">)</span>
+
+<span class="c1"># 7. Delete.</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="aws-s3">
+<h2>AWS S3<a class="headerlink" href="#aws-s3" title="Link to this heading"></a></h2>
+<p>Replace the configuration object; the API is identical.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">S3AssetRepositoryConfig</span><span class="p">,</span>
+    <span class="n">AssetSaveRequest</span><span class="p">,</span>
+    <span class="n">AssetVisibility</span><span class="p">,</span>
+    <span class="n">build_asset_repository</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-app-assets&quot;</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
+    <span class="n">key_prefix</span><span class="o">=</span><span class="s2">&quot;production/&quot;</span><span class="p">,</span>           <span class="c1"># optional prefix inside the bucket</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com&quot;</span><span class="p">,</span>  <span class="c1"># CDN in front of the bucket</span>
+    <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>           <span class="c1"># default TTL for signed URLs</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>   <span class="c1"># returns S3AssetRepository</span>
+
+<span class="c1"># Save a public asset.</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;banner.png&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">&quot;banners/homepage.png&quot;</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/png&quot;</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
+    <span class="p">))</span>
+
+<span class="c1"># Permanent public URL (via CDN).</span>
+<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;banners/homepage.png&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>   <span class="c1"># https://cdn.example.com/banners/homepage.png</span>
+
+<span class="c1"># Save a private asset.</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;invoice.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/pdf&quot;</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
+    <span class="p">))</span>
+
+<span class="c1"># Time-limited download URL.</span>
+<span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>        <span class="c1"># https://... (presigned S3 URL)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span> <span class="c1"># UTC datetime 5 minutes from now</span>
+</pre></div>
+</div>
+</section>
+<section id="using-the-factory">
+<h2>Using the Factory<a class="headerlink" href="#using-the-factory" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">build_asset_repository</span></code> inspects the config type and returns the right
+repository.  This is useful in dependency-injection setups:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_asset_repository</span><span class="p">,</span> <span class="n">LocalNginxAssetRepositoryConfig</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_repo</span><span class="p">():</span>
+    <span class="c1"># In production, read from environment / settings</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
+        <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/var/www/assets&quot;</span><span class="p">,</span>
+        <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost/assets&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="error-handling">
+<h2>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AssetError</span><span class="p">,</span>
+    <span class="n">AssetNotFoundError</span><span class="p">,</span>
+    <span class="n">AssetAccessNotSupportedError</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;missing-key.jpg&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">AssetNotFoundError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Key not found: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span><span class="s2">&quot;some/key.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;image/jpeg&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">AssetAccessNotSupportedError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">backend</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">operation</span><span class="si">}</span><span class="s2"> not supported&quot;</span><span class="p">)</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">bad_request</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">AssetError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="c1"># Base class for all granite-assets errors</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="user-guide.html" class="btn btn-neutral float-right" title="User Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

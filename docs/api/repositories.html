@@ -1,0 +1,415 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>granite_assets.repositories &mdash; Granite Assets 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="canonical" href="/granite-assets/api/repositories.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="granite_assets.factory" href="factory.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Granite Assets
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quick Start</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../presigned-urls.html">Presigned URLs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../implementing-repository.html">Implementing a Custom Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="granite_assets.html">granite_assets package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html">granite_assets.contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">granite_assets.models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enums.html">granite_assets.enums</a></li>
+<li class="toctree-l2"><a class="reference internal" href="exceptions.html">granite_assets.exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="factory.html">granite_assets.factory</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">granite_assets.repositories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-granite_assets.repositories.local_nginx">Local Nginx Repository</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#design-constraints">Design constraints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository"><code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepository</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-granite_assets.repositories.s3">S3 Repository</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#design-decisions">Design decisions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.repositories.s3.S3AssetRepository"><code class="docutils literal notranslate"><span class="pre">S3AssetRepository</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api.html#module-granite_assets">Top-level module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Granite Assets</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API Reference</a></li>
+      <li class="breadcrumb-item active">granite_assets.repositories</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/repositories.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="granite-assets-repositories">
+<h1>granite_assets.repositories<a class="headerlink" href="#granite-assets-repositories" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<section id="module-granite_assets.repositories.local_nginx">
+<span id="local-nginx-repository"></span><h2>Local Nginx Repository<a class="headerlink" href="#module-granite_assets.repositories.local_nginx" title="Link to this heading"></a></h2>
+<p>Local filesystem asset repository served by Nginx (or any static HTTP server).</p>
+<section id="design-constraints">
+<h3>Design constraints<a class="headerlink" href="#design-constraints" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Nginx itself is responsible for serving files; this library only writes/reads
+the filesystem.</p></li>
+<li><p>Public assets are placed under <code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;public_prefix&gt;/</span></code> and
+served at <code class="docutils literal notranslate"><span class="pre">&lt;base_url&gt;/&lt;public_prefix&gt;/</span></code>.</p></li>
+<li><p>Private assets are placed under <code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;private_prefix&gt;/</span></code>.  It is
+the operator’s responsibility to configure Nginx <code class="docutils literal notranslate"><span class="pre">auth_request</span></code> or
+<code class="docutils literal notranslate"><span class="pre">internal</span></code> directives to protect this directory.  This library does <em>not</em>
+and cannot enforce access control at the HTTP layer.</p></li>
+<li><p>Signed download/upload URLs are <strong>not supported</strong>.  The backend raises
+<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code> for those operations so that callers know
+they must route access through their application layer instead.</p></li>
+</ul>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">granite_assets.repositories.local_nginx.</span></span><span class="sig-name descname"><span class="pre">LocalNginxAssetRepository</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.LocalNginxAssetRepositoryConfig" title="granite_assets.models.LocalNginxAssetRepositoryConfig"><span class="pre">LocalNginxAssetRepositoryConfig</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Asset repository backed by the local filesystem.</p>
+<p>Files are organised under two sub-directories:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;public_prefix&gt;/</span></code> – publicly served assets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;private_prefix&gt;/</span></code> – private assets (Nginx-protected).</p></li>
+</ul>
+<p>Public URLs are constructed by joining <code class="docutils literal notranslate"><span class="pre">base_url</span></code>, the relevant prefix,
+and the logical key.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/var/www/assets&quot;</span><span class="p">,</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com/assets&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.LocalNginxAssetRepositoryConfig" title="granite_assets.models.LocalNginxAssetRepositoryConfig"><span class="pre">LocalNginxAssetRepositoryConfig</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url">
+<span class="sig-name descname"><span class="pre">build_download_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.build_download_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url" title="Link to this definition"></a></dt>
+<dd><p>Return a download URL.</p>
+<p>For public assets, returns the same permanent URL.  For private assets,
+raises <code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code> because this backend cannot
+generate signed URLs — the calling application must implement its own
+token-based download endpoint.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_public_url">
+<span class="sig-name descname"><span class="pre">build_public_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.build_public_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_public_url" title="Link to this definition"></a></dt>
+<dd><p>Return a permanent public URL.</p>
+<p>Only valid for assets stored with <code class="docutils literal notranslate"><span class="pre">AssetVisibility.PUBLIC</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetAccessNotSupportedError" title="granite_assets.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – If the asset is private (no signed
+    URL support in this backend).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_upload_url">
+<span class="sig-name descname"><span class="pre">build_upload_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.UploadUrlResult" title="granite_assets.models.UploadUrlResult"><span class="pre">UploadUrlResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.build_upload_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_upload_url" title="Link to this definition"></a></dt>
+<dd><p>Not supported by this backend.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetAccessNotSupportedError" title="granite_assets.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – Always.  The local filesystem has no
+    HTTP upload mechanism.  Route uploads through your application
+    layer and call <code class="docutils literal notranslate"><span class="pre">save</span></code> directly.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.copy" title="Link to this definition"></a></dt>
+<dd><p>Copy a file on disk using shutil (server-side, no re-upload).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.delete"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.delete" title="Link to this definition"></a></dt>
+<dd><p>Remove the asset file from disk.</p>
+<p>Tries both visibility prefixes so the caller does not need to know
+where the file is stored.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.exists">
+<span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.exists" title="Link to this definition"></a></dt>
+<dd><p>Return True if the key exists under either visibility prefix.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.get_descriptor">
+<span class="sig-name descname"><span class="pre">get_descriptor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetDescriptor" title="granite_assets.models.AssetDescriptor"><span class="pre">AssetDescriptor</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.get_descriptor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.get_descriptor" title="Link to this definition"></a></dt>
+<dd><p>Return file metadata without reading the file body.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.move">
+<span class="sig-name descname"><span class="pre">move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.move" title="Link to this definition"></a></dt>
+<dd><p>Move (rename) a file on disk.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.resolve_access">
+<span class="sig-name descname"><span class="pre">resolve_access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.resolve_access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.resolve_access" title="Link to this definition"></a></dt>
+<dd><p>Return the best available URL for the asset.</p>
+<p>For public assets, returns a permanent URL.  For private assets on this
+backend, raises <code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveRequest" title="granite_assets.models.AssetSaveRequest"><span class="pre">AssetSaveRequest</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveResult" title="granite_assets.models.AssetSaveResult"><span class="pre">AssetSaveResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.save" title="Link to this definition"></a></dt>
+<dd><p>Write the asset to disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetError" title="granite_assets.AssetError"><strong>AssetError</strong></a> – If the file already exists and <em>overwrite</em> is False.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-granite_assets.repositories.s3">
+<span id="s3-repository"></span><h2>S3 Repository<a class="headerlink" href="#module-granite_assets.repositories.s3" title="Link to this heading"></a></h2>
+<p>S3 asset repository backed by AWS S3 (or any S3-compatible store).</p>
+<section id="design-decisions">
+<h3>Design decisions<a class="headerlink" href="#design-decisions" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Presigned PUT</strong> is used for upload URLs instead of presigned POST.  POST
+allows richer server-side validation (file-size limits, content-type
+enforcement) but requires a multipart form submission which complicates
+client-side HTTP libraries.  PUT is a plain binary body, trivially consumed
+by <code class="docutils literal notranslate"><span class="pre">fetch</span></code>, <code class="docutils literal notranslate"><span class="pre">axios</span></code>, <code class="docutils literal notranslate"><span class="pre">requests</span></code>, <code class="docutils literal notranslate"><span class="pre">curl</span></code>, and native mobile SDKs.</p></li>
+<li><p><strong>boto3</strong> is loaded lazily so that importing <code class="docutils literal notranslate"><span class="pre">granite_assets</span></code> in a project
+without the <code class="docutils literal notranslate"><span class="pre">s3</span></code> extra does <em>not</em> raise <code class="docutils literal notranslate"><span class="pre">ImportError</span></code> at module level.
+Only instantiating <code class="docutils literal notranslate"><span class="pre">S3AssetRepository</span></code> triggers the import.</p></li>
+<li><p>Object keys in S3 are prefixed with <code class="docutils literal notranslate"><span class="pre">config.key_prefix</span></code> when non-empty.
+The logical <em>key</em> exposed to callers never includes this prefix; the mapping
+is transparent.</p></li>
+<li><p>Public vs private is implemented via S3 object ACLs when the bucket allows
+it, <em>or</em> purely by policy.  To keep the library simple we set
+<code class="docutils literal notranslate"><span class="pre">ACL='public-read'</span></code> for public objects and no ACL for private objects.
+Callers must ensure their bucket policy is compatible.  If you rely on a
+bucket policy instead of ACLs, set <code class="docutils literal notranslate"><span class="pre">public_base_url</span></code> and manage ACLs
+externally.</p></li>
+</ul>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">granite_assets.repositories.s3.</span></span><span class="sig-name descname"><span class="pre">S3AssetRepository</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.S3AssetRepositoryConfig" title="granite_assets.models.S3AssetRepositoryConfig"><span class="pre">S3AssetRepositoryConfig</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Asset repository backed by AWS S3.</p>
+<p>Instantiation is cheap; the boto3 session is created once and reused.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-assets&quot;</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com&quot;</span><span class="p">,</span>
+    <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">S3AssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.S3AssetRepositoryConfig" title="granite_assets.models.S3AssetRepositoryConfig"><span class="pre">S3AssetRepositoryConfig</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.build_download_url">
+<span class="sig-name descname"><span class="pre">build_download_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.build_download_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.build_download_url" title="Link to this definition"></a></dt>
+<dd><p>Generate a presigned GET URL for the asset.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.build_public_url">
+<span class="sig-name descname"><span class="pre">build_public_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.build_public_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.build_public_url" title="Link to this definition"></a></dt>
+<dd><p>Return the permanent public URL for a PUBLIC asset.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">public_base_url</span></code> is configured, uses that as base (CDN URL).
+Otherwise builds a standard virtual-hosted S3 URL.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetAccessNotSupportedError" title="granite_assets.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – If called for a PRIVATE asset key that
+    is known to be private (best-effort; requires a head_object call
+    not performed here for performance).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.build_upload_url">
+<span class="sig-name descname"><span class="pre">build_upload_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.UploadUrlResult" title="granite_assets.models.UploadUrlResult"><span class="pre">UploadUrlResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.build_upload_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.build_upload_url" title="Link to this definition"></a></dt>
+<dd><p>Generate a presigned PUT URL for client-side upload.</p>
+<p>The client must send the file as an HTTP PUT with the <code class="docutils literal notranslate"><span class="pre">Content-Type</span></code>
+header set to exactly the value provided here.  No other headers are
+required by default.</p>
+<p>Example (using <code class="docutils literal notranslate"><span class="pre">requests</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span><span class="s2">&quot;images/photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;image/jpeg&quot;</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">requests</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.copy" title="Link to this definition"></a></dt>
+<dd><p>Server-side S3 copy (no data transfer to/from this process).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.delete"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.delete" title="Link to this definition"></a></dt>
+<dd><p>Delete an S3 object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="granite_assets.html#granite_assets.AssetNotFoundError" title="granite_assets.AssetNotFoundError"><strong>AssetNotFoundError</strong></a> – If the key does not exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.exists">
+<span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.exists" title="Link to this definition"></a></dt>
+<dd><p>Check object existence using a lightweight <code class="docutils literal notranslate"><span class="pre">head_object</span></code> call.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.get_descriptor">
+<span class="sig-name descname"><span class="pre">get_descriptor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetDescriptor" title="granite_assets.models.AssetDescriptor"><span class="pre">AssetDescriptor</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.get_descriptor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.get_descriptor" title="Link to this definition"></a></dt>
+<dd><p>Return S3 object metadata via <code class="docutils literal notranslate"><span class="pre">head_object</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.move">
+<span class="sig-name descname"><span class="pre">move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.move" title="Link to this definition"></a></dt>
+<dd><p>Copy then delete (S3 has no native move operation).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.resolve_access">
+<span class="sig-name descname"><span class="pre">resolve_access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.resolve_access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.resolve_access" title="Link to this definition"></a></dt>
+<dd><p>Return public URL for public assets, signed download URL for private.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveRequest" title="granite_assets.models.AssetSaveRequest"><span class="pre">AssetSaveRequest</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveResult" title="granite_assets.models.AssetSaveResult"><span class="pre">AssetSaveResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.save" title="Link to this definition"></a></dt>
+<dd><p>Upload an asset to S3.</p>
+<p>Sets <code class="docutils literal notranslate"><span class="pre">ACL='public-read'</span></code> for PUBLIC assets.  Metadata and checksum
+are forwarded as S3 object metadata.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="factory.html" class="btn btn-neutral float-left" title="granite_assets.factory" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, impalah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
