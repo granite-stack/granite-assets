@@ -26,6 +26,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/granite-stack/granite-assets"
+Documentation = "https://granite-stack.github.io/granite-assets/"
 Repository = "https://github.com/granite-stack/granite-assets"
 Issues = "https://github.com/granite-stack/granite-assets/issues"
 
