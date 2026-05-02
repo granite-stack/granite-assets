@@ -2,6 +2,7 @@ granite\_assets package
 =======================
 
 .. automodule:: granite_assets
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :no-index:
+   :no-members:
+   :no-undoc-members:
+   :no-special-members:

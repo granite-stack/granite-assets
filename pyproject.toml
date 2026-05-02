@@ -1,11 +1,13 @@
 
 [project]
 name = "granite-assets"
-version = "0.1.1"
+version = "0.1.2"
 description = "Portable asset repository abstraction for local and cloud storage backends"
 readme = "README.md"
 license = { text = "MIT" }
-authors = [{ name = "granite-assets contributors" }]
+authors = [
+    {name = "impalah", email = "impalah@gmail.com"}
+]
 requires-python = ">=3.12"
 keywords = ["assets", "storage", "s3", "nginx", "repository", "url", "presigned"]
 classifiers = [

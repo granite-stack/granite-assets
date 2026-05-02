@@ -156,7 +156,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">S3AssetRepository</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Asset repository backed by AWS S3.</span>
 
@@ -174,7 +174,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="S3AssetRepository.__init__">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.__init__">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span> <span class="o">=</span> <span class="n">config</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_validate_config</span><span class="p">()</span>
@@ -237,7 +237,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="S3AssetRepository.save">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.save">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.save">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetSaveResult</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Upload an asset to S3.</span>
 
@@ -285,7 +285,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository.delete">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.delete">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.delete">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Delete an S3 object.</span>
 
@@ -303,7 +303,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository.copy">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.copy">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.copy">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Server-side S3 copy (no data transfer to/from this process).&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
@@ -330,7 +330,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository.move">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.move">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.move">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy then delete (S3 has no native move operation).&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">source_key</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">)</span>
@@ -349,7 +349,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="S3AssetRepository.exists">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.exists">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.exists">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check object existence using a lightweight ``head_object`` call.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
@@ -370,7 +370,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository.get_descriptor">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.get_descriptor">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.get_descriptor">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_descriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetDescriptor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return S3 object metadata via ``head_object``.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
@@ -398,7 +398,7 @@
     <span class="c1"># ------------------------------------------------------------------</span>
 
 <div class="viewcode-block" id="S3AssetRepository.build_public_url">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.build_public_url">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.build_public_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the permanent public URL for a PUBLIC asset.</span>
 
@@ -417,7 +417,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository.build_download_url">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.build_download_url">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.build_download_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a presigned GET URL for the asset.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
@@ -437,7 +437,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository.build_upload_url">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.build_upload_url">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.build_upload_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_upload_url</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -483,7 +483,7 @@
 
 
 <div class="viewcode-block" id="S3AssetRepository.resolve_access">
-<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.S3AssetRepository.resolve_access">[docs]</a>
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.resolve_access">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return public URL for public assets, signed download URL for private.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
