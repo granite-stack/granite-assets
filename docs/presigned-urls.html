@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Presigned URLs &mdash; Granite Assets 0.1.0 documentation</title>
+  <title>Upload and Download URLs &mdash; Granite Assets 0.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -20,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Implementing a Custom Repository" href="implementing-repository.html" />
+    <link rel="next" title="Infrastructure Setup" href="infrastructure.html" />
     <link rel="prev" title="User Guide" href="user-guide.html" /> 
 </head>
 
@@ -51,14 +51,23 @@
 <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="user-guide.html">User Guide</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Presigned URLs</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#upload-flow-s3">Upload Flow (S3)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#generating-a-presigned-upload-url">Generating a Presigned Upload URL</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#client-side-upload-javascript">Client-side Upload (JavaScript)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#generating-a-presigned-download-url">Generating a Presigned Download URL</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Upload and Download URLs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#upload-urls">Upload URLs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#s3-presigned-put">S3 — Presigned PUT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#local-nginx-tus-via-tusd">Local Nginx — tus (via tusd)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#common-fastapi-endpoint-works-with-both-backends">Common FastAPI Endpoint (works with both backends)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#client-side-upload-javascript">Client-Side Upload (JavaScript)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#download-urls">Download URLs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#s3-presigned-get">S3 — Presigned GET</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#local-nginx-secure-link">Local Nginx — Secure Link</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#security-considerations">Security Considerations</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="infrastructure.html">Infrastructure Setup</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
@@ -83,7 +92,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Presigned URLs</li>
+      <li class="breadcrumb-item active">Upload and Download URLs</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/presigned-urls.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -93,31 +102,64 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="presigned-urls">
-<h1>Presigned URLs<a class="headerlink" href="#presigned-urls" title="Link to this heading"></a></h1>
-<p>Presigned URLs let a client upload or download assets directly from S3 without
-routing the binary data through your application server.  This reduces bandwidth
-costs and latency for large files.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Presigned upload URLs (<code class="docutils literal notranslate"><span class="pre">build_upload_url</span></code>) are <strong>only supported by the S3
-backend</strong>.  <code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepository</span></code> raises
-<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code> if you call this method.</p>
-<p>Presigned download URLs (<code class="docutils literal notranslate"><span class="pre">build_download_url</span></code>) on a local-nginx public
-asset return a permanent URL rather than an error.</p>
-</div>
-<section id="upload-flow-s3">
-<h2>Upload Flow (S3)<a class="headerlink" href="#upload-flow-s3" title="Link to this heading"></a></h2>
-<p>The client-side upload flow has three steps:</p>
+  <section id="upload-and-download-urls">
+<h1>Upload and Download URLs<a class="headerlink" href="#upload-and-download-urls" title="Link to this heading"></a></h1>
+<p>Both backends support generating time-limited URLs that let a client upload or
+download assets <strong>without routing binary data through your application server</strong>.
+The upload protocol differs between backends:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Backend</p></th>
+<th class="head"><p>Upload protocol</p></th>
+<th class="head"><p>Download (private)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">S3</span></code></p></td>
+<td><p>Presigned <code class="docutils literal notranslate"><span class="pre">PUT</span></code></p></td>
+<td><p>Presigned <code class="docutils literal notranslate"><span class="pre">GET</span></code> (S3 or CloudFront)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">LocalNginx</span></code></p></td>
+<td><p>tus <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">+</span> <span class="pre">PATCH</span></code></p></td>
+<td><p>Nginx <code class="docutils literal notranslate"><span class="pre">secure_link</span></code> signed URL</p></td>
+</tr>
+</tbody>
+</table>
+<p>Both backends return the same <code class="docutils literal notranslate"><span class="pre">UploadUrlResult</span></code> model.  Your application code
+and client-side code can be written against the common interface and swapped at
+configuration time.</p>
+<nav class="contents local" id="on-this-page">
+<p class="topic-title">On this page</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#upload-urls" id="id1">Upload URLs</a></p>
+<ul>
+<li><p><a class="reference internal" href="#s3-presigned-put" id="id2">S3 — Presigned PUT</a></p></li>
+<li><p><a class="reference internal" href="#local-nginx-tus-via-tusd" id="id3">Local Nginx — tus (via tusd)</a></p></li>
+<li><p><a class="reference internal" href="#common-fastapi-endpoint-works-with-both-backends" id="id4">Common FastAPI Endpoint (works with both backends)</a></p></li>
+<li><p><a class="reference internal" href="#client-side-upload-javascript" id="id5">Client-Side Upload (JavaScript)</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#download-urls" id="id6">Download URLs</a></p>
+<ul>
+<li><p><a class="reference internal" href="#s3-presigned-get" id="id7">S3 — Presigned GET</a></p></li>
+<li><p><a class="reference internal" href="#local-nginx-secure-link" id="id8">Local Nginx — Secure Link</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#security-considerations" id="id9">Security Considerations</a></p></li>
+</ul>
+</nav>
+<hr class="docutils" />
+<section id="upload-urls">
+<h2><a class="toc-backref" href="#id1" role="doc-backlink">Upload URLs</a><a class="headerlink" href="#upload-urls" title="Link to this heading"></a></h2>
+<section id="s3-presigned-put">
+<h3><a class="toc-backref" href="#id2" role="doc-backlink">S3 — Presigned PUT</a><a class="headerlink" href="#s3-presigned-put" title="Link to this heading"></a></h3>
+<p>The classic S3 presigned upload flow has three steps:</p>
 <ol class="arabic simple">
 <li><p><strong>Request a presigned URL</strong> from your backend API.</p></li>
 <li><p><strong>PUT the file directly to S3</strong> using the returned URL and headers.</p></li>
-<li><p><strong>Confirm the upload</strong> — your backend can poll <code class="docutils literal notranslate"><span class="pre">exists()</span></code> or receive an S3
+<li><p><strong>Confirm the upload</strong> — your backend polls <code class="docutils literal notranslate"><span class="pre">exists()</span></code> or receives an S3
 event notification.</p></li>
 </ol>
-</section>
-<section id="generating-a-presigned-upload-url">
-<h2>Generating a Presigned Upload URL<a class="headerlink" href="#generating-a-presigned-upload-url" title="Link to this heading"></a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">,</span> <span class="n">build_asset_repository</span>
 
 <span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
@@ -135,29 +177,117 @@ event notification.</p></li>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>        <span class="c1"># https://my-bucket.s3.eu-west-1.amazonaws.com/...</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">method</span><span class="p">)</span>     <span class="c1"># &quot;PUT&quot;</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>    <span class="c1"># {&quot;Content-Type&quot;: &quot;image/jpeg&quot;, ...}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>    <span class="c1"># {&quot;Content-Type&quot;: &quot;image/jpeg&quot;}</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span> <span class="c1"># datetime (UTC)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>        <span class="c1"># &quot;uploads/user-42/avatar.jpg&quot;</span>
 </pre></div>
 </div>
-<p>The JSON you would return from a FastAPI endpoint:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
+</section>
+<section id="local-nginx-tus-via-tusd">
+<h3><a class="toc-backref" href="#id3" role="doc-backlink">Local Nginx — tus (via tusd)</a><a class="headerlink" href="#local-nginx-tus-via-tusd" title="Link to this heading"></a></h3>
+<p>The local backend uses the <a class="reference external" href="https://tus.io">tus resumable upload protocol</a>
+with a <a class="reference external" href="https://github.com/tus/tusd">tusd</a> server.  This supports
+arbitrarily large files and automatic resume on connection loss.</p>
+<p>The upload flow has three steps:</p>
+<ol class="arabic simple">
+<li><p><strong>Request a tus creation URL</strong> from your backend API.</p></li>
+<li><p><strong>POST</strong> to create the upload resource; receive a <code class="docutils literal notranslate"><span class="pre">Location</span></code> header.</p></li>
+<li><p><strong>PATCH</strong> the file data in one or more chunks to the <code class="docutils literal notranslate"><span class="pre">Location</span></code> URL.</p></li>
+</ol>
+<p>Tusd must be configured and running.  Set <code class="docutils literal notranslate"><span class="pre">tusd_url</span></code> and <code class="docutils literal notranslate"><span class="pre">upload_secret</span></code>
+on the repository config:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span> <span class="n">build_asset_repository</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/srv/assets&quot;</span><span class="p">,</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://media.example.com/assets&quot;</span><span class="p">,</span>
+    <span class="n">tusd_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:1080&quot;</span><span class="p">,</span>           <span class="c1"># or internal service name</span>
+    <span class="n">upload_secret</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;UPLOAD_SECRET&quot;</span><span class="p">],</span>
+    <span class="n">upload_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="n">upload</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
+    <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/pdf&quot;</span><span class="p">,</span>
+    <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>     <span class="c1"># http://localhost:1080/files/</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">method</span><span class="p">)</span>  <span class="c1"># &quot;POST&quot;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">upload</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+<span class="c1"># {</span>
+<span class="c1">#   &quot;Tus-Resumable&quot;: &quot;1.0.0&quot;,</span>
+<span class="c1">#   &quot;Upload-Metadata&quot;: &quot;asset-key aW52…, content-type YXBw…, …&quot;,</span>
+<span class="c1">#   &quot;Content-Length&quot;: &quot;0&quot;,</span>
+<span class="c1"># }</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepositoryConfig</span></code> requires <strong>both</strong> <code class="docutils literal notranslate"><span class="pre">tusd_url</span></code> and
+<code class="docutils literal notranslate"><span class="pre">upload_secret</span></code> to be set.  Omitting either raises
+<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code>.  If you do not need upload URL support,
+simply leave these fields unset.</p>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">Upload-Metadata</span></code> header embeds five fields (base64-encoded values):</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Content</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">asset-key</span></code></p></td>
+<td><p>Logical key for the asset</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">content-type</span></code></p></td>
+<td><p>MIME type</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">visibility</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;public&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;private&quot;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">upload-expires</span></code></p></td>
+<td><p>Unix timestamp when the token expires</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">upload-token</span></code></p></td>
+<td><p>HMAC-SHA256 hex digest (see below)</p></td>
+</tr>
+</tbody>
+</table>
+<p>The upload token is computed as:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">payload</span>  <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">visibility</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">content_type</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">token</span>    <span class="o">=</span> <span class="n">hmac</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">upload_secret</span><span class="p">,</span> <span class="n">payload</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Your tusd <code class="docutils literal notranslate"><span class="pre">pre-create</span></code> hook must replicate this computation to validate
+incoming uploads.  See <a class="reference internal" href="infrastructure.html"><span class="doc">Infrastructure Setup</span></a> for a complete hook example.</p>
+</section>
+<section id="common-fastapi-endpoint-works-with-both-backends">
+<h3><a class="toc-backref" href="#id4" role="doc-backlink">Common FastAPI Endpoint (works with both backends)</a><a class="headerlink" href="#common-fastapi-endpoint-works-with-both-backends" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">UploadUrlResult</span></code> model is identical for both backends.  You can write
+a single endpoint that serves both:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
 
-<span class="k">class</span><span class="w"> </span><span class="nc">PresignedUploadResponse</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">UploadUrlResponse</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">method</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
     <span class="n">expires_at</span><span class="p">:</span> <span class="n">datetime</span>
     <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
 
-<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/presign/upload&quot;</span><span class="p">)</span>
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">presign_upload</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PresignedUploadResponse</span><span class="p">:</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span>
-        <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">content_type</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">PresignedUploadResponse</span><span class="p">(</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/upload-url&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">UploadUrlResponse</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_upload_url</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadUrlResponse</span><span class="p">:</span>
+    <span class="c1"># repo can be LocalNginxAssetRepository or S3AssetRepository —</span>
+    <span class="c1"># the calling code is identical either way.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">content_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">UploadUrlResponse</span><span class="p">(</span>
         <span class="n">url</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">url</span><span class="p">,</span>
         <span class="n">method</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
         <span class="n">headers</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span>
@@ -168,52 +298,116 @@ event notification.</p></li>
 </div>
 </section>
 <section id="client-side-upload-javascript">
-<h2>Client-side Upload (JavaScript)<a class="headerlink" href="#client-side-upload-javascript" title="Link to this heading"></a></h2>
-<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="nx">method</span><span class="p">,</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/presign/upload?&#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;uploads/user-42/avatar.jpg&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">content_type</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;image/jpeg&#39;</span><span class="p">,</span>
-<span class="p">})).</span><span class="nx">then</span><span class="p">(</span><span class="nx">r</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">json</span><span class="p">());</span>
+<h3><a class="toc-backref" href="#id5" role="doc-backlink">Client-Side Upload (JavaScript)</a><a class="headerlink" href="#client-side-upload-javascript" title="Link to this heading"></a></h3>
+<p>For S3 (<code class="docutils literal notranslate"><span class="pre">method</span> <span class="pre">=</span> <span class="pre">&quot;PUT&quot;</span></code>):</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="nx">method</span><span class="p">,</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;/api/upload-url?&#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">content_type</span><span class="w"> </span><span class="p">})</span>
+<span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">r</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">json</span><span class="p">());</span>
 
-<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="nx">method</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nx">fileBlob</span><span class="p">,</span>
-<span class="p">});</span>
+<span class="c1">// Simple PUT (S3 presigned)</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">method</span><span class="p">,</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span><span class="w"> </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nx">fileBlob</span><span class="w"> </span><span class="p">});</span>
 
-<span class="c1">// Notify your backend that the upload is complete</span>
-<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/media/confirm&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">}),</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/confirm&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">});</span>
+</pre></div>
+</div>
+<p>For tusd (<code class="docutils literal notranslate"><span class="pre">method</span> <span class="pre">=</span> <span class="pre">&quot;POST&quot;</span></code>), use the <a class="reference external" href="https://github.com/tus/tus-js-client">tus-js-client</a>
+library which handles creation + chunked PATCH automatically:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Upload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;tus-js-client&#39;</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;/api/upload-url?&#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">content_type</span><span class="w"> </span><span class="p">})</span>
+<span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">r</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">json</span><span class="p">());</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">upload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">Upload</span><span class="p">(</span><span class="nx">file</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">endpoint</span><span class="o">:</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="nx">headers</span><span class="p">,</span><span class="w">         </span><span class="c1">// includes Tus-Resumable + Upload-Metadata</span>
+<span class="w">    </span><span class="nx">removeFingerprintOnSuccess</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">onSuccess</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/confirm&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">    </span><span class="nx">onError</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Upload failed:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">),</span>
 <span class="p">});</span>
+<span class="nx">upload</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span>
 </pre></div>
 </div>
 </section>
-<section id="generating-a-presigned-download-url">
-<h2>Generating a Presigned Download URL<a class="headerlink" href="#generating-a-presigned-download-url" title="Link to this heading"></a></h2>
-<p>For private assets you need a time-limited URL to allow a specific user to
-download the file:</p>
+</section>
+<hr class="docutils" />
+<section id="download-urls">
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">Download URLs</a><a class="headerlink" href="#download-urls" title="Link to this heading"></a></h2>
+<section id="s3-presigned-get">
+<h3><a class="toc-backref" href="#id7" role="doc-backlink">S3 — Presigned GET</a><a class="headerlink" href="#s3-presigned-get" title="Link to this heading"></a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span>
     <span class="n">key</span><span class="o">=</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
     <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>   <span class="c1"># 5 minutes</span>
 <span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>        <span class="c1"># https://... (valid for 5 minutes)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span> <span class="c1"># datetime (UTC)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://my-bucket.s3.eu-west-1.amazonaws.com/...</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span>   <span class="c1"># datetime (UTC)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># False</span>
 </pre></div>
 </div>
 </section>
+<section id="local-nginx-secure-link">
+<h3><a class="toc-backref" href="#id8" role="doc-backlink">Local Nginx — Secure Link</a><a class="headerlink" href="#local-nginx-secure-link" title="Link to this heading"></a></h3>
+<p>Private assets served by Nginx are protected with
+<code class="docutils literal notranslate"><span class="pre">ngx_http_secure_link_module</span></code>.  The token is an MD5 digest of
+<code class="docutils literal notranslate"><span class="pre">&quot;{expires}{uri}</span> <span class="pre">{secret}&quot;</span></code>, URL-safe base64-encoded without padding —
+exactly what Nginx verifies server-side.</p>
+<p>Activate secure link support by setting <code class="docutils literal notranslate"><span class="pre">secure_link_secret</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span> <span class="n">build_asset_repository</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/srv/assets&quot;</span><span class="p">,</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://media.example.com/assets&quot;</span><span class="p">,</span>
+    <span class="n">secure_link_secret</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SECURE_LINK_SECRET&quot;</span><span class="p">],</span>
+    <span class="n">secure_link_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="c1"># Public asset — permanent URL, no token</span>
+<span class="n">pub</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pub</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://media.example.com/assets/public/avatars/...</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pub</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># True</span>
+
+<span class="c1"># Private asset — Nginx secure_link URL</span>
+<span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+<span class="c1"># https://media.example.com/assets/private/invoices/inv-001.pdf</span>
+<span class="c1">#         ?md5=TOKEN&amp;expires=1747000000</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># False</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">secure_link_secret</span></code> is not configured, calling
+<code class="docutils literal notranslate"><span class="pre">build_download_url()</span></code> on a private asset raises
+<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code>.  You must then proxy downloads through
+your application layer and stream the file body manually.</p>
+</div>
+</section>
+</section>
+<hr class="docutils" />
 <section id="security-considerations">
-<h2>Security Considerations<a class="headerlink" href="#security-considerations" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id9" role="doc-backlink">Security Considerations</a><a class="headerlink" href="#security-considerations" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p><strong>Validate key input</strong> on your backend before issuing a presigned URL.
-Never pass user-controlled strings directly as the S3 key without sanitising
-path separators and disallowed characters.</p></li>
-<li><p><strong>Set the shortest TTL</strong> that is practical for your use case.</p></li>
-<li><p><strong>Content-Type enforcement</strong> — the <code class="docutils literal notranslate"><span class="pre">Content-Type</span></code> header is part of the
-signed request.  A client that sends a different content-type will receive
-a <code class="docutils literal notranslate"><span class="pre">403</span> <span class="pre">Forbidden</span></code> from S3.</p></li>
-<li><p><strong>Restrict presigned URLs by IP</strong> when possible using S3 bucket policy
-conditions (<code class="docutils literal notranslate"><span class="pre">aws:SourceIp</span></code>).</p></li>
+<li><p><strong>Validate the asset key</strong> before generating any URL.  Never pass
+user-supplied strings directly as the key — strip path traversal sequences
+(<code class="docutils literal notranslate"><span class="pre">..</span></code>, leading slashes) and enforce an allowlist of characters.</p></li>
+<li><p><strong>Use the shortest practical TTL.</strong>  The default of 3600 s is generous;
+for one-time download links, 60–300 s is often sufficient.</p></li>
+<li><p><strong>S3 Content-Type enforcement</strong> — the <code class="docutils literal notranslate"><span class="pre">Content-Type</span></code> header is part of
+the presigned request signature.  A client that sends a different
+content-type will receive <code class="docutils literal notranslate"><span class="pre">403</span> <span class="pre">Forbidden</span></code> from S3.</p></li>
+<li><p><strong>S3 IP restriction</strong> — optionally restrict presigned URLs to the
+expected client IP via an S3 bucket policy condition (<code class="docutils literal notranslate"><span class="pre">aws:SourceIp</span></code>).</p></li>
+<li><p><strong>tusd upload-token validation</strong> — always implement the <code class="docutils literal notranslate"><span class="pre">pre-create</span></code>
+hook to verify the HMAC-SHA256 <code class="docutils literal notranslate"><span class="pre">upload-token</span></code> in <code class="docutils literal notranslate"><span class="pre">Upload-Metadata</span></code>.
+Without this, any client that can reach the tusd port could upload
+arbitrary files.  Use <code class="docutils literal notranslate"><span class="pre">hmac.compare_digest</span></code> (constant-time) for the
+comparison.</p></li>
+<li><p><strong>upload_secret rotation</strong> — rotate <code class="docutils literal notranslate"><span class="pre">upload_secret</span></code> independently of
+<code class="docutils literal notranslate"><span class="pre">secure_link_secret</span></code>; they serve different trust boundaries (write vs read).</p></li>
 </ul>
 </section>
 </section>
@@ -223,7 +417,7 @@ conditions (<code class="docutils literal notranslate"><span class="pre">aws:Sou
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="user-guide.html" class="btn btn-neutral float-left" title="User Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="implementing-repository.html" class="btn btn-neutral float-right" title="Implementing a Custom Repository" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="infrastructure.html" class="btn btn-neutral float-right" title="Infrastructure Setup" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

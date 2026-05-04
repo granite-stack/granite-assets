@@ -5,7 +5,10 @@ from __future__ import annotations
 import pytest
 
 from granite_assets.factory import build_asset_repository
-from granite_assets.models import LocalNginxAssetRepositoryConfig, S3AssetRepositoryConfig
+from granite_assets.models import (
+    LocalNginxAssetRepositoryConfig,
+    S3AssetRepositoryConfig,
+)
 from granite_assets.repositories.local_nginx import LocalNginxAssetRepository
 
 

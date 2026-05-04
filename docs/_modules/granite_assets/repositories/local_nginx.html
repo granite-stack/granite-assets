@@ -48,7 +48,8 @@
 <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../user-guide.html">User Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../presigned-urls.html">Presigned URLs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../presigned-urls.html">Upload and Download URLs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../infrastructure.html">Infrastructure Setup</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
@@ -92,21 +93,49 @@
 <span class="sd">  the filesystem.</span>
 <span class="sd">* Public assets are placed under ``&lt;storage_path&gt;/&lt;public_prefix&gt;/`` and</span>
 <span class="sd">  served at ``&lt;base_url&gt;/&lt;public_prefix&gt;/``.</span>
-<span class="sd">* Private assets are placed under ``&lt;storage_path&gt;/&lt;private_prefix&gt;/``.  It is</span>
-<span class="sd">  the operator&#39;s responsibility to configure Nginx ``auth_request`` or</span>
-<span class="sd">  ``internal`` directives to protect this directory.  This library does *not*</span>
-<span class="sd">  and cannot enforce access control at the HTTP layer.</span>
-<span class="sd">* Signed download/upload URLs are **not supported**.  The backend raises</span>
-<span class="sd">  ``AssetAccessNotSupportedError`` for those operations so that callers know</span>
-<span class="sd">  they must route access through their application layer instead.</span>
+<span class="sd">* Private assets are placed under ``&lt;storage_path&gt;/&lt;private_prefix&gt;/``.</span>
+<span class="sd">* **Signed URLs** for private assets are supported when</span>
+<span class="sd">  ``LocalNginxAssetRepositoryConfig.secure_link_secret`` is set.  The token</span>
+<span class="sd">  algorithm matches Nginx&#39;s ``ngx_http_secure_link_module`` with the</span>
+<span class="sd">  ``secure_link_md5`` directive.  Nginx validates tokens server-side without</span>
+<span class="sd">  any round-trip to the application.</span>
+<span class="sd">* When ``secure_link_secret`` is *not* set, private asset URL methods raise</span>
+<span class="sd">  ``AssetAccessNotSupportedError`` so that callers know they must route access</span>
+<span class="sd">  through their own application layer.</span>
+
+<span class="sd">Signed URL algorithm (compatible with ``ngx_http_secure_link_module``)</span>
+<span class="sd">-----------------------------------------------------------------------</span>
+<span class="sd">Given:</span>
+
+<span class="sd">* ``expires``   — Unix timestamp (int) when the URL expires.</span>
+<span class="sd">* ``uri``       — Full URI path component of the asset URL, e.g.</span>
+<span class="sd">                  ``/assets/private/reports/q1.pdf``.</span>
+<span class="sd">* ``secret``    — Shared secret string (``secure_link_secret``).</span>
+
+<span class="sd">The token is computed as::</span>
+
+<span class="sd">    raw   = f&quot;{expires}{uri} {secret}&quot;.encode(&quot;utf-8&quot;)</span>
+<span class="sd">    token = base64.urlsafe_b64encode(md5(raw).digest()).rstrip(b&quot;=&quot;).decode()</span>
+
+<span class="sd">The resulting URL is::</span>
+
+<span class="sd">    {base_url}/{private_prefix}/{key}?md5={token}&amp;expires={expires}</span>
+
+<span class="sd">The Nginx directive that validates this token is::</span>
+
+<span class="sd">    secure_link $arg_md5,$arg_expires;</span>
+<span class="sd">    secure_link_md5 &quot;$secure_link_expires$uri YOUR_SECRET_HERE&quot;;</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hmac</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.contracts</span><span class="w"> </span><span class="kn">import</span> <span class="n">IAssetRepository</span>
@@ -185,6 +214,131 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_uri_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the URI *path* component for the given prefix and key.</span>
+
+<span class="sd">        This is the portion that Nginx receives as ``$uri`` and that must be</span>
+<span class="sd">        embedded verbatim in the secure-link HMAC input.</span>
+
+<span class="sd">        Example::</span>
+
+<span class="sd">            # base_url = &quot;http://localhost:8080/assets&quot;</span>
+<span class="sd">            # prefix   = &quot;private&quot;</span>
+<span class="sd">            # key      = &quot;reports/q1.pdf&quot;</span>
+<span class="sd">            # → &quot;/assets/private/reports/q1.pdf&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">parsed</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlparse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span>
+        <span class="n">base_path</span> <span class="o">=</span> <span class="n">parsed</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_secure_link_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">expires</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the Nginx ``secure_link_md5`` token for *uri_path*.</span>
+
+<span class="sd">        The token is an MD5 digest of ``&quot;{expires}{uri_path} {secret}&quot;``</span>
+<span class="sd">        encoded as URL-safe base64 **without** padding, which is exactly what</span>
+<span class="sd">        Nginx&#39;s ``ngx_http_secure_link_module`` expects.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            uri_path: Full URI path as Nginx will see it in ``$uri``, e.g.</span>
+<span class="sd">                      ``&quot;/assets/private/reports/q1.pdf&quot;``.</span>
+<span class="sd">            expires:  Unix timestamp (seconds since epoch) after which the URL</span>
+<span class="sd">                      should be rejected by Nginx with 410 Gone.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            URL-safe base64 token string (no trailing ``=``).</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: If ``secure_link_secret`` is not</span>
+<span class="sd">                configured on this repository instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secure_link_secret</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
+                <span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;signed URLs (secure_link_secret not configured)&quot;</span>
+            <span class="p">)</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">expires</span><span class="si">}{</span><span class="n">uri_path</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secure_link_secret</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+        <span class="n">digest</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">()</span>  <span class="c1"># noqa: S324 — required by Nginx protocol</span>
+        <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">urlsafe_b64encode</span><span class="p">(</span><span class="n">digest</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;=&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_signed_private_url</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a time-limited signed URL for a private asset.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:         Logical key of the asset (no leading slash).</span>
+<span class="sd">            ttl_seconds: Lifetime of the URL in seconds.  Defaults to</span>
+<span class="sd">                         ``config.secure_link_ttl_seconds`` (3600 s = 1 h).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`AssetAccessUrl` with ``expires_at`` set to the expiry</span>
+<span class="sd">            timestamp in UTC.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: If ``secure_link_secret`` is not set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ttl</span> <span class="o">=</span> <span class="n">ttl_seconds</span> <span class="k">if</span> <span class="n">ttl_seconds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secure_link_ttl_seconds</span>
+        <span class="n">expires</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">ttl</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">private_prefix</span>
+        <span class="n">uri_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri_path</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_secure_link_token</span><span class="p">(</span><span class="n">uri_path</span><span class="p">,</span> <span class="n">expires</span><span class="p">)</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">?md5=</span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&amp;expires=</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span>
+            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+            <span class="n">expires_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">expires</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="n">UTC</span><span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_upload_token</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">expires</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute an HMAC-SHA256 upload token for use in tusd pre-create hooks.</span>
+
+<span class="sd">        The token signs ``&quot;{expires}:{key}:{visibility}:{content_type}&quot;`` with</span>
+<span class="sd">        ``upload_secret`` (SHA-256).  The tusd hook must replicate this to</span>
+<span class="sd">        verify incoming uploads.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Lowercase hex-encoded HMAC-SHA256 digest.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">visibility</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">content_type</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">hmac</span><span class="o">.</span><span class="n">new</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_secret</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">),</span>  <span class="c1"># type: ignore[union-attr]</span>
+            <span class="n">payload</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;sha256&quot;</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_tus_metadata_header</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">expires</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the tus ``Upload-Metadata`` header value.</span>
+
+<span class="sd">        The tus protocol requires each value to be base64-encoded.  Entries</span>
+<span class="sd">        are ``&quot;&lt;key&gt; &lt;base64-value&gt;&quot;`` separated by commas.  The tusd hook</span>
+<span class="sd">        reads these fields to validate and route the upload.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_b64</span><span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="sa">f</span><span class="s2">&quot;asset-key </span><span class="si">{</span><span class="n">_b64</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;content-type </span><span class="si">{</span><span class="n">_b64</span><span class="p">(</span><span class="n">content_type</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;visibility </span><span class="si">{</span><span class="n">_b64</span><span class="p">(</span><span class="n">visibility</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;upload-expires </span><span class="si">{</span><span class="n">_b64</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">expires</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;upload-token </span><span class="si">{</span><span class="n">_b64</span><span class="p">(</span><span class="n">token</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_md5_of_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">digest</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
@@ -329,7 +483,7 @@
             <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
             <span class="n">content_length</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
             <span class="n">visibility</span><span class="o">=</span><span class="n">visibility</span><span class="p">,</span>
-            <span class="n">last_modified</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">),</span>
+            <span class="n">last_modified</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="n">UTC</span><span class="p">),</span>
         <span class="p">)</span></div>
 
 
@@ -359,28 +513,43 @@
 <div class="viewcode-block" id="LocalNginxAssetRepository.build_download_url">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a download URL.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a download URL for the asset.</span>
 
-<span class="sd">        For public assets, returns the same permanent URL.  For private assets,</span>
-<span class="sd">        raises ``AssetAccessNotSupportedError`` because this backend cannot</span>
-<span class="sd">        generate signed URLs — the calling application must implement its own</span>
-<span class="sd">        token-based download endpoint.</span>
+<span class="sd">        * **Public assets** → permanent URL (no token required).</span>
+<span class="sd">        * **Private assets with ``secure_link_secret`` configured** → signed</span>
+<span class="sd">          URL valid for *ttl_seconds* seconds (default:</span>
+<span class="sd">          ``config.secure_link_ttl_seconds``).</span>
+<span class="sd">        * **Private assets without ``secure_link_secret``** → raises</span>
+<span class="sd">          :exc:`AssetAccessNotSupportedError`.  The caller must proxy downloads</span>
+<span class="sd">          through the application layer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:         Logical key of the asset (no leading slash).</span>
+<span class="sd">            ttl_seconds: Override the default signed-URL TTL for this call only.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`AssetAccessUrl` with ``expires_at=None`` for public assets</span>
+<span class="sd">            or a UTC datetime for signed private URLs.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetAccessNotSupportedError: For private assets when no secret is</span>
+<span class="sd">                configured, or when the asset is not found.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-        <span class="c1"># Check which prefix holds this asset (or fall back to public URL)</span>
         <span class="n">pub_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">pub_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 
         <span class="n">priv_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">priv_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secure_link_secret</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_signed_private_url</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
                 <span class="n">_BACKEND_NAME</span><span class="p">,</span>
-                <span class="s2">&quot;build_download_url (private asset)&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;build_download_url (private asset — set secure_link_secret to enable signed URLs)&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-        <span class="c1"># Key not found; still raise unsupported for consistency</span>
         <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
-            <span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;build_download_url (private asset)&quot;</span>
+            <span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;build_download_url (asset not found)&quot;</span>
         <span class="p">)</span></div>
 
 
@@ -391,15 +560,76 @@
         <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span> <span class="o">=</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadUrlResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Not supported by this backend.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a tus upload-creation URL pointing to the configured tusd server.</span>
+
+<span class="sd">        The returned :class:`UploadUrlResult` carries ``method=&quot;POST&quot;`` and</span>
+<span class="sd">        the required tus headers.  The upload flow is:</span>
+
+<span class="sd">        1. Client sends ``POST {url}`` with the headers from ``result.headers``</span>
+<span class="sd">           and ``Content-Length: 0`` (tus creation request).</span>
+<span class="sd">        2. tusd calls your *pre-create* hook to validate ``upload-token``.</span>
+<span class="sd">        3. Client sends ``PATCH {location}`` chunks until the upload is complete.</span>
+<span class="sd">        4. tusd calls your *post-finish* hook to move the file into</span>
+<span class="sd">           ``{storage_path}/{visibility_prefix}/{key}``.</span>
+
+<span class="sd">        Upload-Metadata fields embedded in the request:</span>
+
+<span class="sd">        * ``asset-key``       — logical key for the asset.</span>
+<span class="sd">        * ``content-type``    — MIME type.</span>
+<span class="sd">        * ``visibility``      — ``&quot;public&quot;`` or ``&quot;private&quot;``.</span>
+<span class="sd">        * ``upload-expires``  — Unix timestamp when the token expires.</span>
+<span class="sd">        * ``upload-token``    — HMAC-SHA256 (hex) of</span>
+<span class="sd">          ``&quot;{expires}:{key}:{visibility}:{content_type}&quot;`` signed with</span>
+<span class="sd">          ``upload_secret``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:         Logical key for the asset (no leading slash).</span>
+<span class="sd">            content_type: MIME type of the file to be uploaded.</span>
+<span class="sd">            ttl_seconds: Override the default ``upload_ttl_seconds`` for this</span>
+<span class="sd">                         call only.  Governs how long the token is valid.</span>
+<span class="sd">            visibility:  Target visibility for the asset (keyword-only).</span>
+<span class="sd">                         Defaults to ``AssetVisibility.PRIVATE``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`UploadUrlResult` with ``method=&quot;POST&quot;`` and</span>
+<span class="sd">            tus-specific headers.</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            AssetAccessNotSupportedError: Always.  The local filesystem has no</span>
-<span class="sd">                HTTP upload mechanism.  Route uploads through your application</span>
-<span class="sd">                layer and call ``save`` directly.</span>
+<span class="sd">            AssetAccessNotSupportedError: If ``tusd_url`` or ``upload_secret``</span>
+<span class="sd">                is not configured.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span><span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;build_upload_url&quot;</span><span class="p">)</span></div>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">tusd_url</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
+                <span class="n">_BACKEND_NAME</span><span class="p">,</span>
+                <span class="s2">&quot;build_upload_url (tusd_url not configured — set tusd_url to enable tus uploads)&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_secret</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
+                <span class="n">_BACKEND_NAME</span><span class="p">,</span>
+                <span class="s2">&quot;build_upload_url (upload_secret not configured — set upload_secret to sign upload tokens)&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">ttl</span> <span class="o">=</span> <span class="n">ttl_seconds</span> <span class="k">if</span> <span class="n">ttl_seconds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_ttl_seconds</span>
+        <span class="n">expires</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">ttl</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_upload_token</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">,</span> <span class="n">content_type</span><span class="p">,</span> <span class="n">expires</span><span class="p">)</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tus_metadata_header</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">,</span> <span class="n">content_type</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">expires</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">tusd_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/files/&quot;</span>
+
+        <span class="k">return</span> <span class="n">UploadUrlResult</span><span class="p">(</span>
+            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+            <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;Tus-Resumable&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Upload-Metadata&quot;</span><span class="p">:</span> <span class="n">metadata</span><span class="p">,</span>
+                <span class="s2">&quot;Content-Length&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">expires_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">expires</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="n">UTC</span><span class="p">),</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.resolve_access">
@@ -407,8 +637,21 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the best available URL for the asset.</span>
 
-<span class="sd">        For public assets, returns a permanent URL.  For private assets on this</span>
-<span class="sd">        backend, raises ``AssetAccessNotSupportedError``.</span>
+<span class="sd">        * **Public assets** → permanent public URL.</span>
+<span class="sd">        * **Private assets with ``secure_link_secret`` configured** → signed</span>
+<span class="sd">          URL (same as :meth:`build_download_url`).</span>
+<span class="sd">        * **Private assets without ``secure_link_secret``** → raises</span>
+<span class="sd">          :exc:`AssetAccessNotSupportedError`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:         Logical key of the asset (no leading slash).</span>
+<span class="sd">            ttl_seconds: TTL override forwarded to the signed-URL builder.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetNotFoundError:           If the key does not exist under any</span>
+<span class="sd">                                          visibility prefix.</span>
+<span class="sd">            AssetAccessNotSupportedError: If the asset is private and</span>
+<span class="sd">                                          ``secure_link_secret`` is not set.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">pub_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">)</span>
@@ -417,10 +660,14 @@
 
         <span class="n">priv_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">priv_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secure_link_secret</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_signed_private_url</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
-                <span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;resolve_access (private asset)&quot;</span>
+                <span class="n">_BACKEND_NAME</span><span class="p">,</span>
+                <span class="s2">&quot;resolve_access (private asset — set secure_link_secret to enable signed URLs)&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
+
 
 
     <span class="c1"># ------------------------------------------------------------------</span>

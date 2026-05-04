@@ -1,0 +1,143 @@
+# docker-compose.nginx-manual.yml
+#
+# Manual testing environment for LocalNginxAssetRepository.
+#
+# Includes two services:
+#
+#   nginx  — serves static files (public without token, private with signed URL)
+#   tusd   — accepts resumable file uploads via the tus protocol
+#
+# Usage
+# -----
+#   1. Copy .env.nginx-example to .env.nginx and fill in both secrets:
+#
+#        cp .env.nginx-example .env.nginx
+#        $EDITOR .env.nginx
+#
+#   2. Start both services:
+#
+#        docker compose -f docker-compose.nginx-manual.yml --env-file .env.nginx up
+#
+#   3. Configure the repository in your application:
+#
+#        import os
+#        from granite_assets.models import LocalNginxAssetRepositoryConfig
+#        from granite_assets.repositories.local_nginx import LocalNginxAssetRepository
+#
+#        cfg = LocalNginxAssetRepositoryConfig(
+#            storage_path="./manual-assets",
+#            base_url="http://localhost:8080/assets",
+#            secure_link_secret=os.environ["SECURE_LINK_SECRET"],
+#            tusd_url="http://localhost:1080",
+#            upload_secret=os.environ["UPLOAD_SECRET"],
+#        )
+#        repo = LocalNginxAssetRepository(cfg)
+#
+#        # Generate a signed download URL for a private asset:
+#        url = repo.build_download_url("reports/q1.pdf")
+#        print(url.url)
+#
+#        # Generate a tus upload URL:
+#        upload = repo.build_upload_url("reports/q2.pdf", "application/pdf")
+#        print(upload.url)        # POST target
+#        print(upload.headers)    # headers to include in the POST
+#
+#   4. tus upload flow (example with httpx):
+#
+#        import httpx
+#        content = open("q2.pdf", "rb").read()
+#        headers = {**upload.headers, "Upload-Length": str(len(content))}
+#        resp = httpx.post(upload.url, headers=headers)          # → 201 Created
+#        location = resp.headers["Location"]                      # upload resource URL
+#        httpx.patch(location, headers={
+#            "Tus-Resumable": "1.0.0",
+#            "Content-Type": "application/offset+octet-stream",
+#            "Upload-Offset": "0",
+#            "Content-Length": str(len(content)),
+#        }, content=content)                                       # → 204 No Content
+#
+#   5. Hook integration (optional but recommended for production):
+#
+#        tusd calls your application's webhook endpoints to validate uploads
+#        and move finished files into the Nginx-served directory tree.
+#
+#        Configure hook endpoints in the tusd service below:
+#          --hooks-http http://your-app:8000/tusd/hooks
+#
+#        The pre-create hook receives Upload-Metadata including ``upload-token``
+#        and ``upload-expires`` fields.  Use the same UPLOAD_SECRET to verify
+#        the HMAC-SHA256 token:
+#
+#          import hmac, base64
+#          payload = f"{expires}:{key}:{visibility}:{content_type}"
+#          expected = hmac.new(secret.encode(), payload.encode(), "sha256").hexdigest()
+#          assert token == expected, "invalid upload token"
+#
+#        The post-finish hook should move the completed upload to:
+#          ./manual-assets/{visibility}/{key}
+#        so that Nginx can serve it immediately.
+#
+#   6. Stop:
+#
+#        docker compose -f docker-compose.nginx-manual.yml down
+#
+# Notes
+# -----
+# * Directories under ``./manual-assets`` and ``./manual-tusd-data`` are
+#   created automatically by docker compose if they do not exist.
+# * The rendered Nginx config is generated at container startup via envsubst
+#   to avoid committing secrets to version control.
+
+name: granite-assets-manual
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./manual-assets:/srv/assets:rw
+      - ./examples/nginx-secure-link.conf:/etc/nginx/nginx.conf.template:ro
+    environment:
+      - SECURE_LINK_SECRET=${SECURE_LINK_SECRET}
+    # envsubst replaces $$SECURE_LINK_SECRET inside the template and writes
+    # the final nginx.conf before Nginx starts.
+    command: >
+      /bin/sh -c "
+        envsubst '$$SECURE_LINK_SECRET' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf &&
+        nginx -g 'daemon off;'
+      "
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/assets/public/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  tusd:
+    image: tusproject/tusd:latest
+    # -upload-dir  where tusd stores in-progress and completed uploads.
+    # -port        HTTP port tusd listens on inside the container.
+    # -behind-proxy  honour X-Forwarded-* headers when behind a reverse proxy.
+    #
+    # To add hook integration uncomment and configure:
+    #   -hooks-http http://your-app:8000/tusd/hooks
+    command:
+      - -upload-dir=/data
+      - -port=8080
+      - -behind-proxy
+    ports:
+      - "1080:8080"
+    volumes:
+      - ./manual-tusd-data:/data:rw
+    # UPLOAD_SECRET is not consumed by tusd itself; it is provided here so
+    # the application that implements the hook endpoints can read it from
+    # the same environment file.
+    environment:
+      - UPLOAD_SECRET=${UPLOAD_SECRET}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/metrics"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

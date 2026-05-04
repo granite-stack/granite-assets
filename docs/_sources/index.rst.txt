@@ -23,7 +23,9 @@ Key Features
 
 * **Protocol-based contract** — implement ``IAssetRepository`` without inheriting from any base class.
 * **Local + S3 backends** — production-ready implementations included.
-* **Presigned URLs** — generate time-limited upload (PUT) and download URLs for S3 private assets.
+* **Resumable uploads (tus)** — ``LocalNginxAssetRepository`` generates tus creation URLs for a `tusd <https://github.com/tus/tusd>`_ server, supporting arbitrarily large files and resume on failure.
+* **Presigned S3 upload URLs** — ``S3AssetRepository`` generates presigned ``PUT`` URLs for direct browser-to-S3 uploads.
+* **Signed download URLs** — ``LocalNginxAssetRepository`` supports Nginx ``secure_link`` tokens; ``S3AssetRepository`` generates presigned ``GET`` URLs.
 * **Public URL support** — stable, permanent URLs for public assets via CDN or Nginx.
 * **Asset descriptors** — lightweight metadata queries (``HEAD``-like) without downloading content.
 * **Copy / move** — cheap server-side operations that avoid unnecessary data transfer.
@@ -80,6 +82,7 @@ Contents
 
    user-guide
    presigned-urls
+   infrastructure
 
 .. toctree::
    :maxdepth: 2

@@ -243,6 +243,169 @@ def test_build_upload_url_raises(repo: LocalNginxAssetRepository) -> None:
 
 
 # ---------------------------------------------------------------------------
+# build_upload_url — tus / tusd
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def tusd_config(storage_path: Path) -> LocalNginxAssetRepositoryConfig:
+    return LocalNginxAssetRepositoryConfig(
+        storage_path=str(storage_path),
+        base_url="https://static.example.com/assets",
+        create_directories=True,
+        tusd_url="http://localhost:1080",
+        upload_secret="sup3rs3cr3t",
+        upload_ttl_seconds=1800,
+    )
+
+
+@pytest.fixture()
+def tusd_repo(tusd_config: LocalNginxAssetRepositoryConfig) -> LocalNginxAssetRepository:
+    return LocalNginxAssetRepository(tusd_config)
+
+
+def test_build_upload_url_no_tusd_url_raises(storage_path: Path) -> None:
+    cfg = LocalNginxAssetRepositoryConfig(
+        storage_path=str(storage_path),
+        base_url="http://example.com",
+        upload_secret="s3cr3t",
+    )
+    repo = LocalNginxAssetRepository(cfg)
+    with pytest.raises(AssetAccessNotSupportedError, match="tusd_url"):
+        repo.build_upload_url("file.pdf", "application/pdf")
+
+
+def test_build_upload_url_no_upload_secret_raises(storage_path: Path) -> None:
+    cfg = LocalNginxAssetRepositoryConfig(
+        storage_path=str(storage_path),
+        base_url="http://example.com",
+        tusd_url="http://localhost:1080",
+    )
+    repo = LocalNginxAssetRepository(cfg)
+    with pytest.raises(AssetAccessNotSupportedError, match="upload_secret"):
+        repo.build_upload_url("file.pdf", "application/pdf")
+
+
+def test_build_upload_url_returns_tus_result(tusd_repo: LocalNginxAssetRepository) -> None:
+    from granite_assets.models import UploadUrlResult
+
+    result = tusd_repo.build_upload_url("docs/report.pdf", "application/pdf")
+
+    assert isinstance(result, UploadUrlResult)
+    assert result.method == "POST"
+    assert result.url == "http://localhost:1080/files/"
+    assert result.key == "docs/report.pdf"
+    assert result.expires_at is not None
+
+
+def test_build_upload_url_tus_headers_present(tusd_repo: LocalNginxAssetRepository) -> None:
+    result = tusd_repo.build_upload_url("img/photo.jpg", "image/jpeg")
+
+    assert result.headers["Tus-Resumable"] == "1.0.0"
+    assert "Upload-Metadata" in result.headers
+    assert "Content-Length" in result.headers
+
+
+def test_build_upload_url_metadata_contains_expected_keys(
+    tusd_repo: LocalNginxAssetRepository,
+) -> None:
+    import base64
+
+    result = tusd_repo.build_upload_url("docs/file.txt", "text/plain")
+    metadata = result.headers["Upload-Metadata"]
+
+    # Parse "key base64value, ..." into a dict
+    parsed: dict[str, str] = {}
+    for entry in metadata.split(","):
+        parts = entry.strip().split(" ", 1)
+        assert len(parts) == 2, f"Malformed metadata entry: {entry!r}"
+        parsed[parts[0]] = base64.b64decode(parts[1]).decode()
+
+    assert parsed["asset-key"] == "docs/file.txt"
+    assert parsed["content-type"] == "text/plain"
+    assert parsed["visibility"] == "private"
+    assert parsed["upload-expires"].isdigit()
+    assert len(parsed["upload-token"]) == 64  # SHA-256 hex
+
+
+def test_build_upload_url_token_is_valid_hmac(tusd_repo: LocalNginxAssetRepository) -> None:
+    import base64
+    import hmac as _hmac
+
+    key = "data/archive.zip"
+    content_type = "application/zip"
+    result = tusd_repo.build_upload_url(key, content_type)
+
+    metadata = result.headers["Upload-Metadata"]
+    parsed = {
+        p.split(" ")[0]: base64.b64decode(p.split(" ")[1]).decode()
+        for p in (e.strip() for e in metadata.split(","))
+    }
+
+    expires = int(parsed["upload-expires"])
+    token = parsed["upload-token"]
+    visibility = parsed["visibility"]
+    payload = f"{expires}:{key}:{visibility}:{content_type}"
+    expected = _hmac.new(b"sup3rs3cr3t", payload.encode(), "sha256").hexdigest()
+
+    assert token == expected
+
+
+def test_build_upload_url_ttl_override(tusd_repo: LocalNginxAssetRepository) -> None:
+    import base64
+    import time
+
+    before = int(time.time())
+    result = tusd_repo.build_upload_url("a.bin", "application/octet-stream", ttl_seconds=7200)
+    after = int(time.time())
+
+    metadata = result.headers["Upload-Metadata"]
+    parsed = {
+        p.split(" ")[0]: base64.b64decode(p.split(" ")[1]).decode()
+        for p in (e.strip() for e in metadata.split(","))
+    }
+    expires = int(parsed["upload-expires"])
+
+    assert before + 7200 <= expires <= after + 7200
+
+
+def test_build_upload_url_trailing_slash_normalized(storage_path: Path) -> None:
+    cfg = LocalNginxAssetRepositoryConfig(
+        storage_path=str(storage_path),
+        base_url="http://example.com",
+        tusd_url="http://localhost:1080/",  # trailing slash
+        upload_secret="s3c",
+    )
+    repo = LocalNginxAssetRepository(cfg)
+    result = repo.build_upload_url("f.txt", "text/plain")
+    assert result.url == "http://localhost:1080/files/"
+    assert not result.url.startswith("http://localhost:1080//")
+
+
+def test_build_upload_url_visibility_public(tusd_repo: LocalNginxAssetRepository) -> None:
+    import base64
+
+    result = tusd_repo.build_upload_url(
+        "images/logo.png", "image/png", visibility=AssetVisibility.PUBLIC
+    )
+    metadata = result.headers["Upload-Metadata"]
+    parsed = {
+        p.split(" ")[0]: base64.b64decode(p.split(" ")[1]).decode()
+        for p in (e.strip() for e in metadata.split(","))
+    }
+    assert parsed["visibility"] == "public"
+
+
+def test_build_upload_url_key_with_leading_slash_raises(
+    tusd_repo: LocalNginxAssetRepository,
+) -> None:
+    from granite_assets.exceptions import AssetError
+
+    with pytest.raises(AssetError, match="must not start with"):
+        tusd_repo.build_upload_url("/bad/key.txt", "text/plain")
+
+
+# ---------------------------------------------------------------------------
 # resolve_access
 # ---------------------------------------------------------------------------
 

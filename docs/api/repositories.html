@@ -50,7 +50,8 @@
 <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide.html">User Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../presigned-urls.html">Presigned URLs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../presigned-urls.html">Upload and Download URLs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../infrastructure.html">Infrastructure Setup</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
@@ -68,6 +69,7 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">granite_assets.repositories</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#module-granite_assets.repositories.local_nginx">Local Nginx Repository</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#design-constraints">Design constraints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#signed-url-algorithm-compatible-with-ngx-http-secure-link-module">Signed URL algorithm (compatible with <code class="docutils literal notranslate"><span class="pre">ngx_http_secure_link_module</span></code>)</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository"><code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepository</span></code></a></li>
 </ul>
 </li>
@@ -121,14 +123,43 @@
 the filesystem.</p></li>
 <li><p>Public assets are placed under <code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;public_prefix&gt;/</span></code> and
 served at <code class="docutils literal notranslate"><span class="pre">&lt;base_url&gt;/&lt;public_prefix&gt;/</span></code>.</p></li>
-<li><p>Private assets are placed under <code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;private_prefix&gt;/</span></code>.  It is
-the operator’s responsibility to configure Nginx <code class="docutils literal notranslate"><span class="pre">auth_request</span></code> or
-<code class="docutils literal notranslate"><span class="pre">internal</span></code> directives to protect this directory.  This library does <em>not</em>
-and cannot enforce access control at the HTTP layer.</p></li>
-<li><p>Signed download/upload URLs are <strong>not supported</strong>.  The backend raises
-<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code> for those operations so that callers know
-they must route access through their application layer instead.</p></li>
+<li><p>Private assets are placed under <code class="docutils literal notranslate"><span class="pre">&lt;storage_path&gt;/&lt;private_prefix&gt;/</span></code>.</p></li>
+<li><p><strong>Signed URLs</strong> for private assets are supported when
+<code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepositoryConfig.secure_link_secret</span></code> is set.  The token
+algorithm matches Nginx’s <code class="docutils literal notranslate"><span class="pre">ngx_http_secure_link_module</span></code> with the
+<code class="docutils literal notranslate"><span class="pre">secure_link_md5</span></code> directive.  Nginx validates tokens server-side without
+any round-trip to the application.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">secure_link_secret</span></code> is <em>not</em> set, private asset URL methods raise
+<code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code> so that callers know they must route access
+through their own application layer.</p></li>
 </ul>
+</section>
+<section id="signed-url-algorithm-compatible-with-ngx-http-secure-link-module">
+<h3>Signed URL algorithm (compatible with <code class="docutils literal notranslate"><span class="pre">ngx_http_secure_link_module</span></code>)<a class="headerlink" href="#signed-url-algorithm-compatible-with-ngx-http-secure-link-module" title="Link to this heading"></a></h3>
+<p>Given:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">expires</span></code>   — Unix timestamp (int) when the URL expires.</p></li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">uri</span></code>       — Full URI path component of the asset URL, e.g.</dt><dd><p><code class="docutils literal notranslate"><span class="pre">/assets/private/reports/q1.pdf</span></code>.</p>
+</dd>
+</dl>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">secret</span></code>    — Shared secret string (<code class="docutils literal notranslate"><span class="pre">secure_link_secret</span></code>).</p></li>
+</ul>
+<p>The token is computed as:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">raw</span>   <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">expires</span><span class="si">}{</span><span class="n">uri</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">secret</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+<span class="n">token</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">urlsafe_b64encode</span><span class="p">(</span><span class="n">md5</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">())</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;=&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The resulting URL is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>{base_url}/{private_prefix}/{key}?md5={token}&amp;expires={expires}
+</pre></div>
+</div>
+<p>The Nginx directive that validates this token is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>secure_link $arg_md5,$arg_expires;
+secure_link_md5 &quot;$secure_link_expires$uri YOUR_SECRET_HERE&quot;;
+</pre></div>
+</div>
 </section>
 <dl class="py class">
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository">
@@ -214,22 +245,76 @@ where the file is stored.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url">
 <span class="sig-name descname"><span class="pre">build_download_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.build_download_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url" title="Link to this definition"></a></dt>
-<dd><p>Return a download URL.</p>
-<p>For public assets, returns the same permanent URL.  For private assets,
-raises <code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code> because this backend cannot
-generate signed URLs — the calling application must implement its own
-token-based download endpoint.</p>
+<dd><p>Return a download URL for the asset.</p>
+<ul class="simple">
+<li><p><strong>Public assets</strong> → permanent URL (no token required).</p></li>
+<li><p><strong>Private assets with ``secure_link_secret`` configured</strong> → signed
+URL valid for <em>ttl_seconds</em> seconds (default:
+<code class="docutils literal notranslate"><span class="pre">config.secure_link_ttl_seconds</span></code>).</p></li>
+<li><p><strong>Private assets without ``secure_link_secret``</strong> → raises
+<code class="xref py py-exc docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code>.  The caller must proxy downloads
+through the application layer.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key of the asset (no leading slash).</p></li>
+<li><p><strong>ttl_seconds</strong> – Override the default signed-URL TTL for this call only.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">AssetAccessUrl</span></code> with <code class="docutils literal notranslate"><span class="pre">expires_at=None</span></code> for public assets
+or a UTC datetime for signed private URLs.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetAccessNotSupportedError" title="granite_assets.exceptions.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – For private assets when no secret is
+    configured, or when the asset is not found.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_upload_url">
-<span class="sig-name descname"><span class="pre">build_upload_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.UploadUrlResult" title="granite_assets.models.UploadUrlResult"><span class="pre">UploadUrlResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.build_upload_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_upload_url" title="Link to this definition"></a></dt>
-<dd><p>Not supported by this backend.</p>
+<span class="sig-name descname"><span class="pre">build_upload_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">content_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">visibility</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="enums.html#granite_assets.enums.AssetVisibility" title="granite_assets.enums.AssetVisibility"><span class="pre">AssetVisibility</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">AssetVisibility.PRIVATE</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.UploadUrlResult" title="granite_assets.models.UploadUrlResult"><span class="pre">UploadUrlResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.build_upload_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_upload_url" title="Link to this definition"></a></dt>
+<dd><p>Return a tus upload-creation URL pointing to the configured tusd server.</p>
+<p>The returned <code class="xref py py-class docutils literal notranslate"><span class="pre">UploadUrlResult</span></code> carries <code class="docutils literal notranslate"><span class="pre">method=&quot;POST&quot;</span></code> and
+the required tus headers.  The upload flow is:</p>
+<ol class="arabic simple">
+<li><p>Client sends <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">{url}</span></code> with the headers from <code class="docutils literal notranslate"><span class="pre">result.headers</span></code>
+and <code class="docutils literal notranslate"><span class="pre">Content-Length:</span> <span class="pre">0</span></code> (tus creation request).</p></li>
+<li><p>tusd calls your <em>pre-create</em> hook to validate <code class="docutils literal notranslate"><span class="pre">upload-token</span></code>.</p></li>
+<li><p>Client sends <code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">{location}</span></code> chunks until the upload is complete.</p></li>
+<li><p>tusd calls your <em>post-finish</em> hook to move the file into
+<code class="docutils literal notranslate"><span class="pre">{storage_path}/{visibility_prefix}/{key}</span></code>.</p></li>
+</ol>
+<p>Upload-Metadata fields embedded in the request:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">asset-key</span></code>       — logical key for the asset.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">content-type</span></code>    — MIME type.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">visibility</span></code>      — <code class="docutils literal notranslate"><span class="pre">&quot;public&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;private&quot;</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">upload-expires</span></code>  — Unix timestamp when the token expires.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">upload-token</span></code>    — HMAC-SHA256 (hex) of
+<code class="docutils literal notranslate"><span class="pre">&quot;{expires}:{key}:{visibility}:{content_type}&quot;</span></code> signed with
+<code class="docutils literal notranslate"><span class="pre">upload_secret</span></code>.</p></li>
+</ul>
 <dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key for the asset (no leading slash).</p></li>
+<li><p><strong>content_type</strong> – MIME type of the file to be uploaded.</p></li>
+<li><p><strong>ttl_seconds</strong> – Override the default <code class="docutils literal notranslate"><span class="pre">upload_ttl_seconds</span></code> for this
+call only.  Governs how long the token is valid.</p></li>
+<li><p><strong>visibility</strong> – Target visibility for the asset (keyword-only).
+Defaults to <code class="docutils literal notranslate"><span class="pre">AssetVisibility.PRIVATE</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">UploadUrlResult</span></code> with <code class="docutils literal notranslate"><span class="pre">method=&quot;POST&quot;</span></code> and
+tus-specific headers.</p>
+</dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetAccessNotSupportedError" title="granite_assets.exceptions.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – Always.  The local filesystem has no
-    HTTP upload mechanism.  Route uploads through your application
-    layer and call <code class="docutils literal notranslate"><span class="pre">save</span></code> directly.</p>
+<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetAccessNotSupportedError" title="granite_assets.exceptions.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">tusd_url</span></code> or <code class="docutils literal notranslate"><span class="pre">upload_secret</span></code>
+    is not configured.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -238,8 +323,29 @@ token-based download endpoint.</p>
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.resolve_access">
 <span class="sig-name descname"><span class="pre">resolve_access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.resolve_access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.resolve_access" title="Link to this definition"></a></dt>
 <dd><p>Return the best available URL for the asset.</p>
-<p>For public assets, returns a permanent URL.  For private assets on this
-backend, raises <code class="docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code>.</p>
+<ul class="simple">
+<li><p><strong>Public assets</strong> → permanent public URL.</p></li>
+<li><p><strong>Private assets with ``secure_link_secret`` configured</strong> → signed
+URL (same as <a class="reference internal" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url" title="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url"><code class="xref py py-meth docutils literal notranslate"><span class="pre">build_download_url()</span></code></a>).</p></li>
+<li><p><strong>Private assets without ``secure_link_secret``</strong> → raises
+<code class="xref py py-exc docutils literal notranslate"><span class="pre">AssetAccessNotSupportedError</span></code>.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key of the asset (no leading slash).</p></li>
+<li><p><strong>ttl_seconds</strong> – TTL override forwarded to the signed-URL builder.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetNotFoundError" title="granite_assets.exceptions.AssetNotFoundError"><strong>AssetNotFoundError</strong></a> – If the key does not exist under any
+    visibility prefix.</p></li>
+<li><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetAccessNotSupportedError" title="granite_assets.exceptions.AssetAccessNotSupportedError"><strong>AssetAccessNotSupportedError</strong></a> – If the asset is private and
+    <code class="docutils literal notranslate"><span class="pre">secure_link_secret</span></code> is not set.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 </dd></dl>
