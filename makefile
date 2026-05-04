@@ -20,12 +20,17 @@ venv:
 	echo "Created virtual environment" && \
 	uvx --from=toml-cli toml get --toml-path=pyproject.toml project.version
 
+# Sync version from pyproject.toml to __init__.py and docs_source/conf.py
+sync-version:
+	uv run python scripts/update_version.py
+
 # Bump patch/minor/major version
 bump-version:
 	@v=$$(uvx --from=toml-cli toml get --toml-path=pyproject.toml project.version) && \
 	echo "Current version: $$v" && \
 	uvx --from bump2version bumpversion --allow-dirty --current-version "$$v" $(PART) pyproject.toml && \
 	echo "Version bumped to new $(PART)"
+	$(MAKE) sync-version
 
 # Build python package
 build: bump-version
