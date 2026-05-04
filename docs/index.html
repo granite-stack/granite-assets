@@ -50,7 +50,8 @@
 <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="user-guide.html">User Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="presigned-urls.html">Presigned URLs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="presigned-urls.html">Upload and Download URLs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="infrastructure.html">Infrastructure Setup</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
@@ -103,7 +104,9 @@ so you can swap storage backends without touching application code.</p>
 <ul class="simple">
 <li><p><strong>Protocol-based contract</strong> — implement <code class="docutils literal notranslate"><span class="pre">IAssetRepository</span></code> without inheriting from any base class.</p></li>
 <li><p><strong>Local + S3 backends</strong> — production-ready implementations included.</p></li>
-<li><p><strong>Presigned URLs</strong> — generate time-limited upload (PUT) and download URLs for S3 private assets.</p></li>
+<li><p><strong>Resumable uploads (tus)</strong> — <code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepository</span></code> generates tus creation URLs for a <a class="reference external" href="https://github.com/tus/tusd">tusd</a> server, supporting arbitrarily large files and resume on failure.</p></li>
+<li><p><strong>Presigned S3 upload URLs</strong> — <code class="docutils literal notranslate"><span class="pre">S3AssetRepository</span></code> generates presigned <code class="docutils literal notranslate"><span class="pre">PUT</span></code> URLs for direct browser-to-S3 uploads.</p></li>
+<li><p><strong>Signed download URLs</strong> — <code class="docutils literal notranslate"><span class="pre">LocalNginxAssetRepository</span></code> supports Nginx <code class="docutils literal notranslate"><span class="pre">secure_link</span></code> tokens; <code class="docutils literal notranslate"><span class="pre">S3AssetRepository</span></code> generates presigned <code class="docutils literal notranslate"><span class="pre">GET</span></code> URLs.</p></li>
 <li><p><strong>Public URL support</strong> — stable, permanent URLs for public assets via CDN or Nginx.</p></li>
 <li><p><strong>Asset descriptors</strong> — lightweight metadata queries (<code class="docutils literal notranslate"><span class="pre">HEAD</span></code>-like) without downloading content.</p></li>
 <li><p><strong>Copy / move</strong> — cheap server-side operations that avoid unnecessary data transfer.</p></li>
@@ -180,12 +183,16 @@ so you can swap storage backends without touching application code.</p>
 <li class="toctree-l2"><a class="reference internal" href="user-guide.html#s3-backend-details">S3 Backend Details</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="presigned-urls.html">Presigned URLs</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="presigned-urls.html#upload-flow-s3">Upload Flow (S3)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="presigned-urls.html#generating-a-presigned-upload-url">Generating a Presigned Upload URL</a></li>
-<li class="toctree-l2"><a class="reference internal" href="presigned-urls.html#client-side-upload-javascript">Client-side Upload (JavaScript)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="presigned-urls.html#generating-a-presigned-download-url">Generating a Presigned Download URL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="presigned-urls.html">Upload and Download URLs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="presigned-urls.html#upload-urls">Upload URLs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="presigned-urls.html#download-urls">Download URLs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="presigned-urls.html#security-considerations">Security Considerations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="infrastructure.html">Infrastructure Setup</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="infrastructure.html#local-setup-nginx-tusd">Local Setup: Nginx + tusd</a></li>
+<li class="toctree-l2"><a class="reference internal" href="infrastructure.html#aws-setup-s3-cloudfront">AWS Setup: S3 + CloudFront</a></li>
+<li class="toctree-l2"><a class="reference internal" href="infrastructure.html#choosing-a-backend">Choosing a Backend</a></li>
 </ul>
 </li>
 </ul>

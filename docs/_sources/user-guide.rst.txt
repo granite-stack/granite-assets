@@ -65,9 +65,10 @@ Key Concepts
     permanent public URLs.  Check ``url.is_permanent`` as a convenience.
 
 **UploadUrlResult**
-    Returned by ``build_upload_url()``.  Contains the presigned ``url``, the
-    HTTP ``method`` (always ``"PUT"``), required ``headers``, ``expires_at``,
-    and the ``key`` that will be created.
+    Returned by ``build_upload_url()``.  Contains the ``url``, the HTTP
+    ``method`` (``"PUT"`` for S3, ``"POST"`` for tus), required ``headers``,
+    ``expires_at``, and the ``key`` that will be created after a successful
+    upload.  See :doc:`presigned-urls` for the full upload flow.
 
 Saving Assets
 -------------
@@ -179,13 +180,50 @@ Local Nginx Backend Details
 Files are organised under two sub-directories inside ``storage_path``:
 
 * ``<storage_path>/<public_prefix>/<key>`` — publicly served.
-* ``<storage_path>/<private_prefix>/<key>`` — should be protected by Nginx
-  ``auth_request`` or similar.
+* ``<storage_path>/<private_prefix>/<key>`` — private assets (Nginx-protected).
 
-Presigned URLs are **not supported** by this backend.  Calling
-``build_download_url()`` on a public asset returns a permanent URL (same as
-``build_public_url()``).  Calling ``build_upload_url()`` raises
-``AssetAccessNotSupportedError``.
+Public URLs are constructed by joining ``base_url``, the relevant prefix, and
+the logical key.
+
+**Signed download URLs (secure_link)**
+
+Set ``secure_link_secret`` to enable time-limited download URLs for private
+assets.  The token algorithm matches ``ngx_http_secure_link_module``:
+
+.. code-block:: python
+
+   import os
+   config = LocalNginxAssetRepositoryConfig(
+       storage_path="/srv/assets",
+       base_url="https://media.example.com/assets",
+       secure_link_secret=os.environ["SECURE_LINK_SECRET"],
+       secure_link_ttl_seconds=3600,   # default TTL; override per-call
+   )
+
+Without ``secure_link_secret``, calling ``build_download_url()`` on a private
+asset raises ``AssetAccessNotSupportedError`` — you must proxy downloads
+through your application layer.
+
+**Resumable upload URLs (tus / tusd)**
+
+Set ``tusd_url`` and ``upload_secret`` to enable ``build_upload_url()``.  The
+method returns a tus *creation* URL (``method="POST"``) with signed
+``Upload-Metadata``.  The tusd ``pre-create`` hook must verify the
+``upload-token`` field using the same ``upload_secret``:
+
+.. code-block:: python
+
+   config = LocalNginxAssetRepositoryConfig(
+       storage_path="/srv/assets",
+       base_url="https://media.example.com/assets",
+       secure_link_secret=os.environ["SECURE_LINK_SECRET"],
+       tusd_url="http://localhost:1080",
+       upload_secret=os.environ["UPLOAD_SECRET"],
+       upload_ttl_seconds=3600,
+   )
+
+See :doc:`presigned-urls` for the full upload flow and hook implementation,
+and :doc:`infrastructure` for docker-compose and Nginx configuration.
 
 Example Nginx configuration:
 
@@ -196,7 +234,11 @@ Example Nginx configuration:
    }
 
    location /assets/private/ {
-       internal;
+       # Validate secure_link token
+       secure_link $arg_md5,$arg_expires;
+       secure_link_md5 "$secure_link_expires$uri YOUR_SECRET_HERE";
+       if ($secure_link = "")  { return 403; }
+       if ($secure_link = "0") { return 410; }  # expired
        alias /var/www/assets/private/;
    }
 

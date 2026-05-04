@@ -12,7 +12,10 @@ from moto import mock_aws  # noqa: E402
 
 from granite_assets.enums import AssetVisibility  # noqa: E402
 from granite_assets.exceptions import AssetNotFoundError  # noqa: E402
-from granite_assets.models import AssetSaveRequest, S3AssetRepositoryConfig  # noqa: E402
+from granite_assets.models import (  # noqa: E402
+    AssetSaveRequest,
+    S3AssetRepositoryConfig,
+)
 from granite_assets.repositories.s3 import S3AssetRepository  # noqa: E402
 
 BUCKET = "test-granite-assets"

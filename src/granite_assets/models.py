@@ -14,7 +14,6 @@ from typing import BinaryIO
 
 from granite_assets.enums import AssetVisibility
 
-
 # ---------------------------------------------------------------------------
 # Input / request models
 # ---------------------------------------------------------------------------
@@ -127,20 +126,24 @@ class AssetAccessUrl:
 
 @dataclass(slots=True, frozen=True)
 class UploadUrlResult:
-    """Result of a pre-signed upload URL request.
+    """Result of a pre-signed or tus upload URL request.
 
-    For S3, the chosen mechanism is a **presigned PUT** (single-part upload up
-    to 5 GB).  A presigned POST would allow more server-side validation but adds
-    complexity for the common case; PUT is simpler to consume from any HTTP
-    client and is the idiomatic choice for most REST-style integrations.
+    Backends may use different upload protocols:
+
+    * **S3 / S3-compatible** — presigned ``PUT`` (single-part, up to 5 GB).  The
+      client sends the file body directly as a plain HTTP PUT to *url*.
+    * **tusd (tus protocol)** — the client sends an HTTP ``POST`` to *url* to
+      *create* the upload resource, then ``PATCH`` chunks until complete.  The
+      required tus headers (``Tus-Resumable``, ``Upload-Metadata``) are included
+      in *headers*.  This supports arbitrarily large files and resumable uploads.
 
     Attributes:
-        url:         The pre-signed URL the client should PUT to.
-        method:      HTTP method to use (always ``"PUT"`` for this library).
-        headers:     Headers that the client *must* include in the request
-                     (e.g. ``Content-Type``, ``Content-Length``).
-        expires_at:  When the URL stops being valid.
-        key:         The logical key that will be created after a successful PUT.
+        url:         The URL the client should target for the first request.
+        method:      HTTP method for the first request (``"PUT"`` for S3,
+                     ``"POST"`` for tus).
+        headers:     Headers that the client *must* include in the request.
+        expires_at:  When the upload authorisation token expires.
+        key:         The logical key that will be created after a successful upload.
     """
 
     url: str
@@ -162,14 +165,90 @@ class LocalNginxAssetRepositoryConfig:
     Attributes:
         storage_path:       Absolute path on disk where assets are written.
         base_url:           Root URL at which Nginx (or any static server) serves
-                            the ``storage_path`` directory.
-        public_prefix:      Sub-path appended to both the storage path and the
-                            URL for public assets (default ``"public"``).
-        private_prefix:     Sub-path for private assets.  Since local Nginx has no
-                            signed-URL support these files can only be served if
-                            you protect the directory at the Nginx level.
-        overwrite:          Global overwrite default; can be overridden per request.
-        create_directories: Automatically create missing intermediate directories.
+                            the ``storage_path`` directory.  Example::
+
+                                "http://localhost:8080/assets"
+
+        public_prefix:      Sub-directory name (and URL path segment) used for
+                            publicly accessible assets.  Default: ``"public"``.
+                            Files are placed at
+                            ``{storage_path}/{public_prefix}/{key}`` and served
+                            at ``{base_url}/{public_prefix}/{key}``.
+
+        private_prefix:     Sub-directory name for private assets.
+                            Default: ``"private"``.  Files are placed at
+                            ``{storage_path}/{private_prefix}/{key}`` and are
+                            only served when Nginx signed-URL validation passes
+                            (requires ``secure_link_secret`` to be set) or when
+                            the operator configures ``auth_request`` / internal
+                            directives on their own.
+
+        overwrite:          Global overwrite default applied when
+                            :attr:`AssetSaveRequest.overwrite` is *None*.
+                            Defaults to ``True``.
+
+        create_directories: Automatically create missing parent directories when
+                            saving assets.  Disable if you want strict control
+                            over the directory layout.  Default: ``True``.
+
+        secure_link_secret: Shared secret used to generate and validate
+                            Nginx ``secure_link`` tokens for **private** assets.
+                            When set, :meth:`build_download_url` and
+                            :meth:`resolve_access` will return time-limited
+                            signed URLs instead of raising
+                            :exc:`AssetAccessNotSupportedError`.
+
+                            The secret must match the value configured in the
+                            Nginx directive::
+
+                                secure_link_md5 "$secure_link_expires$uri SECRET";
+
+                            **Keep this value secret.**  Anyone who knows it can
+                            forge download tokens.  Use an environment variable
+                            or a secrets manager — never hardcode it.
+
+                            When *None* (default), private asset access via URL
+                            is unsupported and the caller must proxy downloads
+                            through the application layer.
+
+        secure_link_ttl_seconds: Default lifetime (in seconds) of signed URLs
+                            generated for private assets.  Default: ``3600``
+                            (1 hour).  Individual calls to
+                            :meth:`build_download_url` can override this value
+                            via the *ttl_seconds* parameter.
+
+        tusd_url:           Base URL of the `tusd <https://github.com/tus/tusd>`_
+                            server used to receive file uploads (e.g.
+                            ``"http://localhost:1080"``).  When set,
+                            :meth:`build_upload_url` generates a tus creation
+                            request targeting ``{tusd_url}/files/``.
+
+                            tusd must be configured to call back to your
+                            application's hook endpoint so it can:
+
+                            1. Validate the ``upload-token`` in the upload
+                               metadata (*pre-create* hook).
+                            2. Move the finished upload to the correct directory
+                               under *storage_path* (*post-finish* hook).
+
+                            When *None* (default), :meth:`build_upload_url`
+                            raises :exc:`AssetAccessNotSupportedError`.
+
+        upload_secret:      HMAC-SHA256 secret used to sign upload tokens
+                            embedded in the tus ``Upload-Metadata`` header.
+                            The same secret must be available to the hook
+                            endpoint that validates incoming uploads.
+
+                            **Keep this value secret** — it authorises writes
+                            to your storage directory.
+
+                            When *None* and *tusd_url* is set, any upload is
+                            accepted without verification (only appropriate
+                            behind a trusted network).
+
+        upload_ttl_seconds: Default lifetime (in seconds) of upload tokens.
+                            Default: ``3600`` (1 hour).  Individual calls to
+                            :meth:`build_upload_url` can override this value.
     """
 
     storage_path: str
@@ -178,6 +257,11 @@ class LocalNginxAssetRepositoryConfig:
     private_prefix: str = "private"
     overwrite: bool = True
     create_directories: bool = True
+    secure_link_secret: str | None = None
+    secure_link_ttl_seconds: int = 3600
+    tusd_url: str | None = None
+    upload_secret: str | None = None
+    upload_ttl_seconds: int = 3600
 
 
 @dataclass(slots=True)
