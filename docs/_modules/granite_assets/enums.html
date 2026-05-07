@@ -104,6 +104,32 @@
     <span class="n">PUBLIC</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span>
     <span class="n">PRIVATE</span> <span class="o">=</span> <span class="s2">&quot;private&quot;</span></div>
 
+
+
+<div class="viewcode-block" id="CfSigningMethod">
+<a class="viewcode-back" href="../../api/enums.html#granite_assets.enums.CfSigningMethod">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CfSigningMethod</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Controls how CloudFront access is authorised for private assets.</span>
+
+<span class="sd">    URL    – access credentials are embedded as query parameters on each URL</span>
+<span class="sd">             (``?Policy=…&amp;Signature=…&amp;Key-Pair-Id=…`` for custom policy, or</span>
+<span class="sd">             ``?Expires=…&amp;Signature=…&amp;Key-Pair-Id=…`` for canned policy).</span>
+<span class="sd">             This is the default and works with any HTTP client without</span>
+<span class="sd">             any cookie handling.</span>
+
+<span class="sd">    COOKIE – access credentials are issued once as three ``Set-Cookie`` headers</span>
+<span class="sd">             (``CloudFront-Policy``, ``CloudFront-Signature``,</span>
+<span class="sd">             ``CloudFront-Key-Pair-Id``) via a dedicated endpoint.</span>
+<span class="sd">             ``build_download_url`` returns a plain (unsigned) CloudFront URL;</span>
+<span class="sd">             the browser includes the cookies automatically on every subsequent</span>
+<span class="sd">             asset request.  Requires the LMS and the CloudFront distribution to</span>
+<span class="sd">             share a domain (or use ``SameSite=None; Secure`` across distinct</span>
+<span class="sd">             origins).  Use ``build_signed_cookies`` to obtain cookie values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">URL</span> <span class="o">=</span> <span class="s2">&quot;url&quot;</span>
+    <span class="n">COOKIE</span> <span class="o">=</span> <span class="s2">&quot;cookie&quot;</span></div>
+
 </pre></div>
 
            </div>

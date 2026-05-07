@@ -70,6 +70,11 @@
 <li class="toctree-l4"><a class="reference internal" href="#granite_assets.enums.AssetVisibility.PRIVATE"><code class="docutils literal notranslate"><span class="pre">AssetVisibility.PRIVATE</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#granite_assets.enums.CfSigningMethod"><code class="docutils literal notranslate"><span class="pre">CfSigningMethod</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.enums.CfSigningMethod.URL"><code class="docutils literal notranslate"><span class="pre">CfSigningMethod.URL</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#granite_assets.enums.CfSigningMethod.COOKIE"><code class="docutils literal notranslate"><span class="pre">CfSigningMethod.COOKIE</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="exceptions.html">granite_assets.exceptions</a></li>
@@ -126,6 +131,38 @@
 <dl class="py attribute">
 <dt class="sig sig-object py" id="granite_assets.enums.AssetVisibility.PRIVATE">
 <span class="sig-name descname"><span class="pre">PRIVATE</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'private'</span></span><a class="headerlink" href="#granite_assets.enums.AssetVisibility.PRIVATE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="granite_assets.enums.CfSigningMethod">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">granite_assets.enums.</span></span><span class="sig-name descname"><span class="pre">CfSigningMethod</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/granite_assets/enums.html#CfSigningMethod"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.enums.CfSigningMethod" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></a></p>
+<p>Controls how CloudFront access is authorised for private assets.</p>
+<dl class="simple">
+<dt>URL    – access credentials are embedded as query parameters on each URL</dt><dd><p>(<code class="docutils literal notranslate"><span class="pre">?Policy=…&amp;Signature=…&amp;Key-Pair-Id=…</span></code> for custom policy, or
+<code class="docutils literal notranslate"><span class="pre">?Expires=…&amp;Signature=…&amp;Key-Pair-Id=…</span></code> for canned policy).
+This is the default and works with any HTTP client without
+any cookie handling.</p>
+</dd>
+<dt>COOKIE – access credentials are issued once as three <code class="docutils literal notranslate"><span class="pre">Set-Cookie</span></code> headers</dt><dd><p>(<code class="docutils literal notranslate"><span class="pre">CloudFront-Policy</span></code>, <code class="docutils literal notranslate"><span class="pre">CloudFront-Signature</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CloudFront-Key-Pair-Id</span></code>) via a dedicated endpoint.
+<code class="docutils literal notranslate"><span class="pre">build_download_url</span></code> returns a plain (unsigned) CloudFront URL;
+the browser includes the cookies automatically on every subsequent
+asset request.  Requires the LMS and the CloudFront distribution to
+share a domain (or use <code class="docutils literal notranslate"><span class="pre">SameSite=None;</span> <span class="pre">Secure</span></code> across distinct
+origins).  Use <code class="docutils literal notranslate"><span class="pre">build_signed_cookies</span></code> to obtain cookie values.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="granite_assets.enums.CfSigningMethod.URL">
+<span class="sig-name descname"><span class="pre">URL</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'url'</span></span><a class="headerlink" href="#granite_assets.enums.CfSigningMethod.URL" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="granite_assets.enums.CfSigningMethod.COOKIE">
+<span class="sig-name descname"><span class="pre">COOKIE</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'cookie'</span></span><a class="headerlink" href="#granite_assets.enums.CfSigningMethod.COOKIE" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>

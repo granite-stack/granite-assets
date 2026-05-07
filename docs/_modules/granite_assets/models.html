@@ -99,7 +99,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">BinaryIO</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span><span class="p">,</span> <span class="n">CfSigningMethod</span>
 
 <span class="c1"># ---------------------------------------------------------------------------</span>
 <span class="c1"># Input / request models</span>
@@ -258,9 +258,41 @@
 
 
 
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Configuration models</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
+<div class="viewcode-block" id="CfSignedCookies">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.models.CfSignedCookies">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CfSignedCookies</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;CloudFront signed-cookie values to be set on the response.</span>
+
+<span class="sd">    All three cookies are required by CloudFront.  Set them with</span>
+<span class="sd">    ``HttpOnly; Secure; SameSite=None`` so the browser sends them on</span>
+<span class="sd">    cross-origin CloudFront requests.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        policy:       Base64-encoded custom policy (``CloudFront-Policy`` cookie).</span>
+<span class="sd">        signature:    RSA-SHA1 signature of the policy (``CloudFront-Signature``).</span>
+<span class="sd">        key_pair_id:  CloudFront key-pair ID (``CloudFront-Key-Pair-Id``).</span>
+<span class="sd">        expires_at:   When the authorisation expires.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">policy</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">signature</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">key_pair_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">expires_at</span><span class="p">:</span> <span class="n">datetime</span>
+
+<div class="viewcode-block" id="CfSignedCookies.as_cookie_header_values">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.models.CfSignedCookies.as_cookie_header_values">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">as_cookie_header_values</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a mapping of cookie name → value ready for ``Set-Cookie``.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;CloudFront-Policy&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">policy</span><span class="p">,</span>
+            <span class="s2">&quot;CloudFront-Signature&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span>
+            <span class="s2">&quot;CloudFront-Key-Pair-Id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_pair_id</span><span class="p">,</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepositoryConfig">
@@ -424,6 +456,16 @@
 
 <span class="sd">    ``has_cf_signing()`` takes precedence: if both signing keys and this flag</span>
 <span class="sd">    are set, CloudFront signed URLs are used.&quot;&quot;&quot;</span>
+    <span class="n">cf_signing_method</span><span class="p">:</span> <span class="n">CfSigningMethod</span> <span class="o">=</span> <span class="n">CfSigningMethod</span><span class="o">.</span><span class="n">URL</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Controls whether access credentials are embedded in the URL (default) or</span>
+<span class="sd">    issued as signed cookies.  See :class:`~granite_assets.enums.CfSigningMethod`.</span>
+
+<span class="sd">    - ``URL``    – :meth:`build_download_url` returns a CloudFront signed URL</span>
+<span class="sd">      (query-param credentials).  Works everywhere, no cookie handling needed.</span>
+<span class="sd">    - ``COOKIE`` – :meth:`build_download_url` returns a plain (unsigned)</span>
+<span class="sd">      CloudFront URL.  The caller must first obtain cookies via</span>
+<span class="sd">      :meth:`build_signed_cookies` and set them on the browser.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="S3AssetRepositoryConfig.presign_ttl">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.presign_ttl">[docs]</a>

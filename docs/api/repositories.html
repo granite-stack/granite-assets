@@ -461,15 +461,74 @@ Otherwise builds a standard virtual-hosted S3 URL.</p>
 <dd><p>Generate a download URL for a private asset.</p>
 <p>Priority order:</p>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> + <code class="docutils literal notranslate"><span class="pre">cf_private_key</span></code> set → <strong>CloudFront signed URL</strong>
-(time-limited, never exposes S3).  Most secure option.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cf_unsigned_urls=True</span></code> + <code class="docutils literal notranslate"><span class="pre">public_base_url</span></code> set → <strong>plain
-CloudFront URL</strong> (permanent, no signature).  Suitable when the CF
-distribution has no viewer-access restriction and the S3 bucket is
-only reachable via CloudFront OAC.  The URL never expires.</p></li>
-<li><p>Fallback → <strong>S3 presigned URL</strong> (time-limited but exposes the S3
-domain).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> + <code class="docutils literal notranslate"><span class="pre">cf_private_key</span></code> set <strong>and</strong> <code class="docutils literal notranslate"><span class="pre">cf_signing_method=URL</span></code>
+→ <strong>CloudFront signed URL</strong> (canned policy, query-param credentials).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> + <code class="docutils literal notranslate"><span class="pre">cf_private_key</span></code> set <strong>and</strong> <code class="docutils literal notranslate"><span class="pre">cf_signing_method=COOKIE</span></code>
+→ <strong>plain CloudFront URL</strong> (no signature).  The browser must already
+hold the signed cookies obtained via <a class="reference internal" href="#granite_assets.repositories.s3.S3AssetRepository.build_signed_cookies" title="granite_assets.repositories.s3.S3AssetRepository.build_signed_cookies"><code class="xref py py-meth docutils literal notranslate"><span class="pre">build_signed_cookies()</span></code></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cf_unsigned_urls=True</span></code> + <code class="docutils literal notranslate"><span class="pre">public_base_url</span></code> set
+→ <strong>plain CloudFront URL</strong> (permanent, no signature).</p></li>
+<li><p>Fallback → <strong>S3 presigned URL</strong> (time-limited, exposes S3 domain).</p></li>
 </ol>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.build_path_signed_url">
+<span class="sig-name descname"><span class="pre">build_path_signed_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_pattern</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.build_path_signed_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.build_path_signed_url" title="Link to this definition"></a></dt>
+<dd><p>Generate a CloudFront URL with <strong>custom-policy</strong> signing for <em>key</em>.</p>
+<p>Unlike the canned-policy URL returned by <a class="reference internal" href="#granite_assets.repositories.s3.S3AssetRepository.build_download_url" title="granite_assets.repositories.s3.S3AssetRepository.build_download_url"><code class="xref py py-meth docutils literal notranslate"><span class="pre">build_download_url()</span></code></a>, the
+custom policy can authorise a <strong>wildcard path</strong> so that a single set of
+query-param credentials is valid for every file under a directory.  This
+is the recommended approach for HLS/DASH video streaming where the player
+autonomously fetches dozens of segment files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key of the file whose URL is returned
+(e.g. <code class="docutils literal notranslate"><span class="pre">&quot;private/videos/uuid/master.m3u8&quot;</span></code>).  Must
+not start with <code class="docutils literal notranslate"><span class="pre">/</span></code>.</p></li>
+<li><p><strong>path_pattern</strong> – CloudFront resource pattern to embed in the policy.
+Accepts a trailing <code class="docutils literal notranslate"><span class="pre">*</span></code> wildcard
+(e.g. <code class="docutils literal notranslate"><span class="pre">&quot;private/videos/uuid/*&quot;</span></code>).
+Defaults to the directory of <em>key</em> + <code class="docutils literal notranslate"><span class="pre">/*</span></code>.</p></li>
+<li><p><strong>ttl_seconds</strong> – URL lifetime in seconds (default: configured TTL).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">AssetAccessUrl</span></code> whose <code class="docutils literal notranslate"><span class="pre">url</span></code> carries
+<code class="docutils literal notranslate"><span class="pre">?Policy=…&amp;Signature=…&amp;Key-Pair-Id=…</span></code> query params.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetConfigurationError" title="granite_assets.exceptions.AssetConfigurationError"><strong>AssetConfigurationError</strong></a> – if CloudFront signing is not configured.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.build_signed_cookies">
+<span class="sig-name descname"><span class="pre">build_signed_cookies</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key_pattern</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.CfSignedCookies" title="granite_assets.models.CfSignedCookies"><span class="pre">CfSignedCookies</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.build_signed_cookies"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.build_signed_cookies" title="Link to this definition"></a></dt>
+<dd><p>Generate CloudFront signed-cookie values for <em>key_pattern</em>.</p>
+<p>Call this once per session (or per resource group) and set the returned
+values as <code class="docutils literal notranslate"><span class="pre">HttpOnly;</span> <span class="pre">Secure;</span> <span class="pre">SameSite=None</span></code> cookies on the response.
+The browser will then include them automatically on every CloudFront
+request that matches the policy path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key_pattern</strong> – Logical key pattern (may include a trailing <code class="docutils literal notranslate"><span class="pre">*</span></code>
+wildcard) relative to the configured key prefix.
+Example: <code class="docutils literal notranslate"><span class="pre">&quot;private/videos/uuid/*&quot;</span></code>.</p></li>
+<li><p><strong>ttl_seconds</strong> – Cookie lifetime in seconds (default: configured TTL).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">CfSignedCookies</span></code> with <code class="docutils literal notranslate"><span class="pre">policy</span></code>, <code class="docutils literal notranslate"><span class="pre">signature</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">key_pair_id</span></code> values ready to set as cookies.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetConfigurationError" title="granite_assets.exceptions.AssetConfigurationError"><strong>AssetConfigurationError</strong></a> – if CloudFront signing is not configured.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
