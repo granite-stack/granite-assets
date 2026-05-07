@@ -458,7 +458,18 @@ Otherwise builds a standard virtual-hosted S3 URL.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.build_download_url">
 <span class="sig-name descname"><span class="pre">build_download_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.build_download_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.build_download_url" title="Link to this definition"></a></dt>
-<dd><p>Generate a presigned GET URL for the asset.</p>
+<dd><p>Generate a download URL for a private asset.</p>
+<p>Priority order:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> + <code class="docutils literal notranslate"><span class="pre">cf_private_key</span></code> set → <strong>CloudFront signed URL</strong>
+(time-limited, never exposes S3).  Most secure option.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cf_unsigned_urls=True</span></code> + <code class="docutils literal notranslate"><span class="pre">public_base_url</span></code> set → <strong>plain
+CloudFront URL</strong> (permanent, no signature).  Suitable when the CF
+distribution has no viewer-access restriction and the S3 bucket is
+only reachable via CloudFront OAC.  The URL never expires.</p></li>
+<li><p>Fallback → <strong>S3 presigned URL</strong> (time-limited but exposes the S3
+domain).</p></li>
+</ol>
 </dd></dl>
 
 <dl class="py method">

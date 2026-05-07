@@ -213,15 +213,69 @@ library which handles creation + chunked PATCH automatically:
 Download URLs
 -------------
 
-S3 — Presigned GET
-~~~~~~~~~~~~~~~~~~~
+S3 — Three URL modes for private assets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The S3 backend supports three URL modes for ``build_download_url``, selected
+by the configuration fields you set.  See :ref:`download_url_modes` in the
+infrastructure guide for a full comparison.
+
+**Mode 1 — CloudFront signed URL** (recommended for production)
+
+Requires a CloudFront key pair and ``trusted_key_groups`` on the cache
+behavior.  The URL is time-limited and never exposes the S3 domain.
 
 .. code-block:: python
 
-   dl = repo.build_download_url(
-       key="invoices/inv-001.pdf",
-       ttl_seconds=300,   # 5 minutes
+   import os
+   from granite_assets import S3AssetRepositoryConfig, build_asset_repository
+
+   config = S3AssetRepositoryConfig(
+       bucket="my-bucket",
+       region="eu-west-1",
+       public_base_url="https://d111….cloudfront.net",
+       cf_key_id=os.environ["CF_KEY_ID"],
+       cf_private_key=open("/path/to/private_key.pem").read(),
+       presign_ttl_seconds=3600,
    )
+   repo = build_asset_repository(config)
+
+   dl = repo.build_download_url("invoices/inv-001.pdf", ttl_seconds=300)
+   print(dl.url)          # https://d111….cloudfront.net/private/…?Expires=…&Signature=…
+   print(dl.expires_at)   # datetime (UTC)
+   print(dl.is_permanent) # False
+
+**Mode 2 — Plain CloudFront URL** (permanent, no signing)
+
+Set ``cf_unsigned_urls=True`` when no viewer-access restriction is required.
+The URL is permanent; protect access at the application layer.
+
+.. code-block:: python
+
+   config = S3AssetRepositoryConfig(
+       bucket="my-bucket",
+       region="eu-west-1",
+       public_base_url="https://d111….cloudfront.net",
+       cf_unsigned_urls=True,
+   )
+   repo = build_asset_repository(config)
+
+   dl = repo.build_download_url("invoices/inv-001.pdf")
+   print(dl.url)          # https://d111….cloudfront.net/private/invoices/inv-001.pdf
+   print(dl.is_permanent) # True
+
+**Mode 3 — S3 presigned URL** (fallback, no CloudFront fields set)
+
+.. code-block:: python
+
+   config = S3AssetRepositoryConfig(
+       bucket="my-bucket",
+       region="eu-west-1",
+       presign_ttl_seconds=300,
+   )
+   repo = build_asset_repository(config)
+
+   dl = repo.build_download_url("invoices/inv-001.pdf", ttl_seconds=300)
    print(dl.url)          # https://my-bucket.s3.eu-west-1.amazonaws.com/...
    print(dl.expires_at)   # datetime (UTC)
    print(dl.is_permanent) # False

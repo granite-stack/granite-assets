@@ -65,14 +65,15 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#aws-setup-s3-cloudfront">AWS Setup: S3 + CloudFront</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">How it works</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#download-url-modes">Download URL modes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#terraform">Terraform</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id2">Repository configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">Upload flow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Repository configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">Upload flow</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#download-flow">Download flow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#s3-event-notifications-optional">S3 event notifications (optional)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#environment-variables-reference">Environment variables reference</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#choosing-a-backend">Choosing a Backend</a></li>
 </ul>
 </li>
 </ul>
@@ -118,33 +119,34 @@ development-quality) environment running.</p>
 <nav class="contents local" id="on-this-page">
 <p class="topic-title">On this page</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#local-setup-nginx-tusd" id="id4">Local Setup: Nginx + tusd</a></p>
+<li><p><a class="reference internal" href="#local-setup-nginx-tusd" id="id5">Local Setup: Nginx + tusd</a></p>
 <ul>
-<li><p><a class="reference internal" href="#how-it-works" id="id5">How it works</a></p></li>
-<li><p><a class="reference internal" href="#docker-compose-manual-development" id="id6">Docker Compose (manual / development)</a></p></li>
-<li><p><a class="reference internal" href="#services-and-ports" id="id7">Services and ports</a></p></li>
-<li><p><a class="reference internal" href="#repository-configuration" id="id8">Repository configuration</a></p></li>
-<li><p><a class="reference internal" href="#upload-flow" id="id9">Upload flow</a></p></li>
-<li><p><a class="reference internal" href="#hook-integration" id="id10">Hook integration</a></p></li>
-<li><p><a class="reference internal" href="#nginx-configuration" id="id11">Nginx configuration</a></p></li>
+<li><p><a class="reference internal" href="#how-it-works" id="id6">How it works</a></p></li>
+<li><p><a class="reference internal" href="#docker-compose-manual-development" id="id7">Docker Compose (manual / development)</a></p></li>
+<li><p><a class="reference internal" href="#services-and-ports" id="id8">Services and ports</a></p></li>
+<li><p><a class="reference internal" href="#repository-configuration" id="id9">Repository configuration</a></p></li>
+<li><p><a class="reference internal" href="#upload-flow" id="id10">Upload flow</a></p></li>
+<li><p><a class="reference internal" href="#hook-integration" id="id11">Hook integration</a></p></li>
+<li><p><a class="reference internal" href="#nginx-configuration" id="id12">Nginx configuration</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#aws-setup-s3-cloudfront" id="id12">AWS Setup: S3 + CloudFront</a></p>
+<li><p><a class="reference internal" href="#aws-setup-s3-cloudfront" id="id13">AWS Setup: S3 + CloudFront</a></p>
 <ul>
-<li><p><a class="reference internal" href="#id1" id="id13">How it works</a></p></li>
-<li><p><a class="reference internal" href="#terraform" id="id14">Terraform</a></p></li>
-<li><p><a class="reference internal" href="#id2" id="id15">Repository configuration</a></p></li>
-<li><p><a class="reference internal" href="#id3" id="id16">Upload flow</a></p></li>
-<li><p><a class="reference internal" href="#download-flow" id="id17">Download flow</a></p></li>
-<li><p><a class="reference internal" href="#s3-event-notifications-optional" id="id18">S3 event notifications (optional)</a></p></li>
+<li><p><a class="reference internal" href="#id1" id="id14">How it works</a></p></li>
+<li><p><a class="reference internal" href="#download-url-modes" id="id15">Download URL modes</a></p></li>
+<li><p><a class="reference internal" href="#terraform" id="id16">Terraform</a></p></li>
+<li><p><a class="reference internal" href="#id3" id="id17">Repository configuration</a></p></li>
+<li><p><a class="reference internal" href="#id4" id="id18">Upload flow</a></p></li>
+<li><p><a class="reference internal" href="#download-flow" id="id19">Download flow</a></p></li>
+<li><p><a class="reference internal" href="#environment-variables-reference" id="id20">Environment variables reference</a></p></li>
+<li><p><a class="reference internal" href="#troubleshooting" id="id21">Troubleshooting</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#choosing-a-backend" id="id19">Choosing a Backend</a></p></li>
 </ul>
 </nav>
 <hr class="docutils" />
 <section id="local-setup-nginx-tusd">
-<h2><a class="toc-backref" href="#id4" role="doc-backlink">Local Setup: Nginx + tusd</a><a class="headerlink" href="#local-setup-nginx-tusd" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Local Setup: Nginx + tusd</a><a class="headerlink" href="#local-setup-nginx-tusd" title="Link to this heading"></a></h2>
 <p>This architecture is suitable for:</p>
 <ul class="simple">
 <li><p>local development environments,</p></li>
@@ -152,7 +154,7 @@ development-quality) environment running.</p>
 <li><p>environments where AWS costs or complexity are not justified.</p></li>
 </ul>
 <section id="how-it-works">
-<h3><a class="toc-backref" href="#id5" role="doc-backlink">How it works</a><a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id6" role="doc-backlink">How it works</a><a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h3>
 <p>Two processes run side by side and share the same filesystem directory:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Client
   │
@@ -171,7 +173,7 @@ to generate signed URLs (download via <code class="docutils literal notranslate"
 <code class="docutils literal notranslate"><span class="pre">build_upload_url</span></code>); it never touches binary data directly.</p>
 </section>
 <section id="docker-compose-manual-development">
-<h3><a class="toc-backref" href="#id6" role="doc-backlink">Docker Compose (manual / development)</a><a class="headerlink" href="#docker-compose-manual-development" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id7" role="doc-backlink">Docker Compose (manual / development)</a><a class="headerlink" href="#docker-compose-manual-development" title="Link to this heading"></a></h3>
 <p>The repository ships a ready-to-use compose file:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Copy the env template and set both secrets</span>
 cp<span class="w"> </span>.env.nginx-example<span class="w"> </span>.env.nginx
@@ -194,7 +196,7 @@ python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;i
 </div>
 </section>
 <section id="services-and-ports">
-<h3><a class="toc-backref" href="#id7" role="doc-backlink">Services and ports</a><a class="headerlink" href="#services-and-ports" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id8" role="doc-backlink">Services and ports</a><a class="headerlink" href="#services-and-ports" title="Link to this heading"></a></h3>
 <table class="docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>Service</p></th>
@@ -222,7 +224,7 @@ public-facing server.</p>
 </div>
 </section>
 <section id="repository-configuration">
-<h3><a class="toc-backref" href="#id8" role="doc-backlink">Repository configuration</a><a class="headerlink" href="#repository-configuration" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id9" role="doc-backlink">Repository configuration</a><a class="headerlink" href="#repository-configuration" title="Link to this heading"></a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">,</span> <span class="n">build_asset_repository</span>
 
@@ -240,7 +242,7 @@ public-facing server.</p>
 </div>
 </section>
 <section id="upload-flow">
-<h3><a class="toc-backref" href="#id9" role="doc-backlink">Upload flow</a><a class="headerlink" href="#upload-flow" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id10" role="doc-backlink">Upload flow</a><a class="headerlink" href="#upload-flow" title="Link to this heading"></a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Your API endpoint calls build_upload_url</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span>
     <span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
@@ -273,7 +275,7 @@ public-facing server.</p>
 </div>
 </section>
 <section id="hook-integration">
-<h3><a class="toc-backref" href="#id10" role="doc-backlink">Hook integration</a><a class="headerlink" href="#hook-integration" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id11" role="doc-backlink">Hook integration</a><a class="headerlink" href="#hook-integration" title="Link to this heading"></a></h3>
 <p>tusd calls HTTP hook endpoints at key lifecycle events so your application can
 validate tokens and post-process completed uploads.</p>
 <p><strong>pre-create</strong> — validate the upload token before accepting the upload:</p>
@@ -326,7 +328,7 @@ validate tokens and post-process completed uploads.</p>
 </div>
 </section>
 <section id="nginx-configuration">
-<h3><a class="toc-backref" href="#id11" role="doc-backlink">Nginx configuration</a><a class="headerlink" href="#nginx-configuration" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id12" role="doc-backlink">Nginx configuration</a><a class="headerlink" href="#nginx-configuration" title="Link to this heading"></a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">examples/nginx-secure-link.conf</span></code> file in the repository is an annotated
 operator template.  It configures:</p>
 <ul class="simple">
@@ -340,7 +342,7 @@ at container startup so secrets never appear in version-controlled files.</p>
 </section>
 <hr class="docutils" />
 <section id="aws-setup-s3-cloudfront">
-<h2><a class="toc-backref" href="#id12" role="doc-backlink">AWS Setup: S3 + CloudFront</a><a class="headerlink" href="#aws-setup-s3-cloudfront" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id13" role="doc-backlink">AWS Setup: S3 + CloudFront</a><a class="headerlink" href="#aws-setup-s3-cloudfront" title="Link to this heading"></a></h2>
 <p>This architecture is suitable for:</p>
 <ul class="simple">
 <li><p>distributed or serverless applications,</p></li>
@@ -348,59 +350,82 @@ at container startup so secrets never appear in version-controlled files.</p>
 <li><p>multi-region deployments.</p></li>
 </ul>
 <section id="id1">
-<h3><a class="toc-backref" href="#id13" role="doc-backlink">How it works</a><a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<h3><a class="toc-backref" href="#id14" role="doc-backlink">How it works</a><a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Client
   │
-  ├─► PUT {presigned S3 URL}  ──► S3 (direct, bypasses app server)
+  ├─► PUT {presigned S3 URL}   ──► S3  (direct upload, bypasses app)
   │
-  └─► GET https://cdn.example.com/…  ──► CloudFront  ──► S3
-              ├── /public/*  → no OAC restriction (public bucket policy)
-              └── /private/* → signed CloudFront URL (or OAC + app-level auth)
+  └─► GET https://cdn.example.com/…  ──► CloudFront  ──► S3 (via OAC)
+            ├── /public/*   → permanent CF URL, no auth needed
+            └── /private/*  → CloudFront signed URL (time-limited)
+                               CF edge validates signature BEFORE fetching from S3
 </pre></div>
 </div>
-<p>Public assets are served via CloudFront from an S3 prefix with a public-read
-bucket policy.  Private assets are uploaded with a presigned PUT URL (valid for
-a configurable TTL) and downloaded via either a presigned S3 URL or a signed
-CloudFront URL.</p>
+<p><strong>Origin Access Control (OAC)</strong> ensures the S3 bucket is never accessible
+directly — all reads go through CloudFront.  The bucket policy only grants
+<code class="docutils literal notranslate"><span class="pre">s3:GetObject</span></code> to the CloudFront service principal with the distribution ARN
+as condition.</p>
+<p>For <strong>private assets</strong> the application generates a <em>CloudFront signed URL</em>:
+the edge node verifies the RSA signature before forwarding the request to S3.
+S3 sees a normal OAC-signed request and serves the object.  The private key
+never leaves your infrastructure.</p>
+</section>
+<section id="download-url-modes">
+<span id="id2"></span><h3><a class="toc-backref" href="#id15" role="doc-backlink">Download URL modes</a><a class="headerlink" href="#download-url-modes" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">S3AssetRepositoryConfig</span></code> supports three modes for <code class="docutils literal notranslate"><span class="pre">build_download_url</span></code>.
+They are evaluated in priority order:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 5.0%" />
+<col style="width: 30.0%" />
+<col style="width: 15.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Priority</p></th>
+<th class="head"><p>Mode</p></th>
+<th class="head"><p>URL expires?</p></th>
+<th class="head"><p>When to use</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1 (highest)</p></td>
+<td><p><strong>CloudFront signed URL</strong> — set <code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> + <code class="docutils literal notranslate"><span class="pre">cf_private_key</span></code></p></td>
+<td><p>✅ configurable TTL</p></td>
+<td><p>Strictest security. Requires a key pair in CloudFront and
+<code class="docutils literal notranslate"><span class="pre">trusted_key_groups</span></code> on the private cache behavior.</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p><strong>Plain CloudFront URL</strong> — set <code class="docutils literal notranslate"><span class="pre">cf_unsigned_urls=True</span></code></p></td>
+<td><p>❌ permanent</p></td>
+<td><p>When the CloudFront distribution has <em>no</em> viewer-access restriction
+and you rely on OAC to keep S3 private. URL never expires — share
+only with authenticated users at the application layer.</p></td>
+</tr>
+<tr class="row-even"><td><p>3 (fallback)</p></td>
+<td><p><strong>S3 presigned URL</strong> — no CF fields set</p></td>
+<td><p>✅ configurable TTL</p></td>
+<td><p>Simple setup, no CloudFront key pair needed. Exposes the
+<code class="docutils literal notranslate"><span class="pre">s3.amazonaws.com</span></code> domain in URLs.</p></td>
+</tr>
+</tbody>
+</table>
 </section>
 <section id="terraform">
-<h3><a class="toc-backref" href="#id14" role="doc-backlink">Terraform</a><a class="headerlink" href="#terraform" title="Link to this heading"></a></h3>
-<p>The Terraform snippets below create a minimal production-ready setup: one S3
-bucket, a CloudFront distribution with Origin Access Control, and the required
-IAM policy for your application role.  Adjust names, regions, and tags for your
-environment.</p>
-<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># ─── variables.tf ────────────────────────────────────────────────────────────</span>
-
-<span class="kr">variable</span><span class="w"> </span><span class="nv">&quot;bucket_name&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="na">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;S3 bucket name for asset storage (must be globally unique)&quot;</span>
-<span class="w">  </span><span class="na">type</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="kt">string</span>
-<span class="p">}</span>
-
-<span class="kr">variable</span><span class="w"> </span><span class="nv">&quot;region&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="na">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AWS region&quot;</span>
-<span class="w">  </span><span class="na">type</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="kt">string</span>
-<span class="w">  </span><span class="na">default</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;eu-west-1&quot;</span>
-<span class="p">}</span>
-
-<span class="kr">variable</span><span class="w"> </span><span class="nv">&quot;environment&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="na">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Environment tag (production, staging, …)&quot;</span>
-<span class="w">  </span><span class="na">type</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="kt">string</span>
-<span class="w">  </span><span class="na">default</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;production&quot;</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># ─── s3.tf ───────────────────────────────────────────────────────────────────</span>
+<h3><a class="toc-backref" href="#id16" role="doc-backlink">Terraform</a><a class="headerlink" href="#terraform" title="Link to this heading"></a></h3>
+<p>The snippets below create a production-ready setup: S3 bucket, CloudFront
+distribution with OAC, signing key pair + key group (for private signed URLs),
+and a Secrets Manager secret for the private key.  Adjust names, regions,
+and tags for your environment.</p>
+<p><strong>S3 bucket</strong></p>
+<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># s3.tf</span>
 
 <span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_s3_bucket&quot;</span><span class="w"> </span><span class="nv">&quot;assets&quot;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="na">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.bucket_name</span>
-
-<span class="w">  </span><span class="nb">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span>
-<span class="w">    </span><span class="na">ManagedBy</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;terraform&quot;</span>
-<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="nb">tags</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span><span class="p">,</span><span class="w"> </span><span class="na">ManagedBy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;terraform&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="p">}</span>
 
-<span class="c1"># Block all public access — CloudFront uses OAC; app uses presigned URLs.</span>
+<span class="c1"># Block all direct public access — CloudFront uses OAC.</span>
 <span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_s3_bucket_public_access_block&quot;</span><span class="w"> </span><span class="nv">&quot;assets&quot;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="na">bucket</span><span class="w">                  </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_s3_bucket.assets.id</span>
 <span class="w">  </span><span class="na">block_public_acls</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
@@ -409,21 +434,29 @@ environment.</p>
 <span class="w">  </span><span class="na">restrict_public_buckets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
 <span class="p">}</span>
 
-<span class="c1"># Bucket policy: allow CloudFront OAC to read and the app role to write.</span>
+<span class="c1"># Bucket policy: allow CloudFront OAC to read BOTH prefixes.</span>
+<span class="c1">#</span>
+<span class="c1"># Two statements are required:</span>
+<span class="c1">#   AllowCloudFrontPublic  — public assets served without a token</span>
+<span class="c1">#   AllowCloudFrontPrivate — private assets; CloudFront validates the signed</span>
+<span class="c1">#                            URL at the edge BEFORE issuing this OAC request</span>
+<span class="c1">#</span>
+<span class="c1"># The app role needs PutObject / DeleteObject for uploads and deletions.</span>
 <span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_s3_bucket_policy&quot;</span><span class="w"> </span><span class="nv">&quot;assets&quot;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="na">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_s3_bucket.assets.id</span>
 <span class="w">  </span><span class="na">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">data.aws_iam_policy_document.assets_bucket.json</span>
+<span class="w">  </span><span class="na">depends_on</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">aws_cloudfront_distribution.assets</span><span class="p">]</span>
 <span class="p">}</span>
 
 <span class="kr">data</span><span class="w"> </span><span class="nc">&quot;aws_iam_policy_document&quot;</span><span class="w"> </span><span class="nv">&quot;assets_bucket&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="c1">  # CloudFront OAC read access (GetObject)</span>
 <span class="w">  </span><span class="nb">statement</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="na">sid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AllowCloudFrontPublic&quot;</span>
 <span class="w">    </span><span class="nb">principals</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="na">type</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Service&quot;</span>
 <span class="w">      </span><span class="na">identifiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;cloudfront.amazonaws.com&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">    </span><span class="na">actions</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">]</span>
-<span class="w">    </span><span class="na">resources</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;${aws_s3_bucket.assets.arn}/*&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="na">resources</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;${aws_s3_bucket.assets.arn}/public/*&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="nb">condition</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="na">test</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;StringEquals&quot;</span>
 <span class="w">      </span><span class="na">variable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AWS:SourceArn&quot;</span>
@@ -431,25 +464,39 @@ environment.</p>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">}</span>
 
-<span class="c1">  # Application role: full read + write access</span>
 <span class="w">  </span><span class="nb">statement</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="na">sid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AllowCloudFrontPrivate&quot;</span>
+<span class="w">    </span><span class="nb">principals</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="na">type</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Service&quot;</span>
+<span class="w">      </span><span class="na">identifiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;cloudfront.amazonaws.com&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="na">actions</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">]</span>
+<span class="c1">    # CloudFront verifies the signed URL signature at the edge;</span>
+<span class="c1">    # only then does it issue an OAC-authenticated request to S3.</span>
+<span class="w">    </span><span class="na">resources</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;${aws_s3_bucket.assets.arn}/private/*&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nb">condition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="na">test</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;StringEquals&quot;</span>
+<span class="w">      </span><span class="na">variable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AWS:SourceArn&quot;</span>
+<span class="w">      </span><span class="na">values</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">aws_cloudfront_distribution.assets.arn</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="nb">statement</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="na">sid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AllowAppRole&quot;</span>
 <span class="w">    </span><span class="nb">principals</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="na">type</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;AWS&quot;</span>
 <span class="w">      </span><span class="na">identifiers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">aws_iam_role.app.arn</span><span class="p">]</span>
 <span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="na">actions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">      </span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="s2">&quot;s3:PutObject&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="s2">&quot;s3:DeleteObject&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="s2">&quot;s3:HeadObject&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="p">]</span>
+<span class="w">    </span><span class="na">actions</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:GetObject&quot;, &quot;s3:PutObject&quot;, &quot;s3:DeleteObject&quot;, &quot;s3:HeadObject&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="na">resources</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;${aws_s3_bucket.assets.arn}/*&quot;</span><span class="p">]</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>
-<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># ─── cloudfront.tf ───────────────────────────────────────────────────────────</span>
+<p><strong>CloudFront distribution</strong></p>
+<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># cloudfront.tf</span>
 
+<span class="c1"># ── Origin Access Control ─────────────────────────────────────────────────</span>
 <span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_cloudfront_origin_access_control&quot;</span><span class="w"> </span><span class="nv">&quot;assets&quot;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="na">name</span><span class="w">                              </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;${var.bucket_name}-oac&quot;</span>
 <span class="w">  </span><span class="na">description</span><span class="w">                       </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;OAC for granite-assets bucket&quot;</span>
@@ -458,10 +505,41 @@ environment.</p>
 <span class="w">  </span><span class="na">signing_protocol</span><span class="w">                  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sigv4&quot;</span>
 <span class="p">}</span>
 
+<span class="c1"># ── Signing key pair (for private CloudFront signed URLs) ─────────────────</span>
+<span class="c1">#</span>
+<span class="c1"># The private key is generated by Terraform, stored in Secrets Manager, and</span>
+<span class="c1"># NEVER committed to version control.</span>
+<span class="c1"># The public key is uploaded to CloudFront; AWS stores only the public half.</span>
+
+<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;tls_private_key&quot;</span><span class="w"> </span><span class="nv">&quot;cf_signing&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">algorithm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;RSA&quot;</span>
+<span class="w">  </span><span class="na">rsa_bits</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="m">2048</span>
+<span class="p">}</span>
+
+<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_cloudfront_public_key&quot;</span><span class="w"> </span><span class="nv">&quot;assets&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">name</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;${var.environment}-assets-signing-key&quot;</span>
+<span class="w">  </span><span class="na">encoded_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">tls_private_key.cf_signing.public_key_pem</span>
+<span class="p">}</span>
+
+<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_cloudfront_key_group&quot;</span><span class="w"> </span><span class="nv">&quot;assets&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">name</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;${var.environment}-assets-key-group&quot;</span>
+<span class="w">  </span><span class="na">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">aws_cloudfront_public_key.assets.id</span><span class="p">]</span>
+<span class="p">}</span>
+
+<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_secretsmanager_secret&quot;</span><span class="w"> </span><span class="nv">&quot;cf_private_key&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">name</span><span class="w">                    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;${var.environment}/assets/cf-signing-private-key&quot;</span>
+<span class="w">  </span><span class="na">recovery_window_in_days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">7</span>
+<span class="p">}</span>
+
+<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_secretsmanager_secret_version&quot;</span><span class="w"> </span><span class="nv">&quot;cf_private_key&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">secret_id</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_secretsmanager_secret.cf_private_key.id</span>
+<span class="w">  </span><span class="na">secret_string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">tls_private_key.cf_signing.private_key_pem</span>
+<span class="p">}</span>
+
+<span class="c1"># ── Distribution ─────────────────────────────────────────────────────────</span>
 <span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_cloudfront_distribution&quot;</span><span class="w"> </span><span class="nv">&quot;assets&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="na">enabled</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
-<span class="w">  </span><span class="na">is_ipv6_enabled</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
-<span class="w">  </span><span class="na">default_root_object</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+<span class="w">  </span><span class="na">enabled</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
+<span class="w">  </span><span class="na">is_ipv6_enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
 
 <span class="w">  </span><span class="nb">origin</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="na">domain_name</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_s3_bucket.assets.bucket_regional_domain_name</span>
@@ -469,7 +547,32 @@ environment.</p>
 <span class="w">    </span><span class="na">origin_access_control_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_cloudfront_origin_access_control.assets.id</span>
 <span class="w">  </span><span class="p">}</span>
 
-<span class="c1">  # Public prefix — cached aggressively, no auth needed.</span>
+<span class="c1">  # ── Private prefix: requires a valid CloudFront signed URL ────────────</span>
+<span class="c1">  #</span>
+<span class="c1">  # trusted_key_groups tells CloudFront to validate the ?Signature= and</span>
+<span class="c1">  # ?Key-Pair-Id= query parameters on every request matching this pattern.</span>
+<span class="c1">  # Requests without a valid signature are rejected at the edge (403).</span>
+<span class="w">  </span><span class="nb">ordered_cache_behavior</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="na">path_pattern</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/private/*&quot;</span>
+<span class="w">    </span><span class="na">allowed_methods</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;GET&quot;, &quot;HEAD&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="na">cached_methods</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;GET&quot;, &quot;HEAD&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="na">target_origin_id</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;s3-assets&quot;</span>
+<span class="w">    </span><span class="na">viewer_protocol_policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;redirect-to-https&quot;</span>
+<span class="w">    </span><span class="na">compress</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
+
+<span class="w">    </span><span class="na">trusted_key_groups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">aws_cloudfront_key_group.assets.id</span><span class="p">]</span>
+
+<span class="w">    </span><span class="nb">forwarded_values</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="na">query_string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">false</span><span class="c1">   # CF strips auth params before forwarding to S3</span>
+<span class="w">      </span><span class="nb">cookies</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="na">forward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="na">min_ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">0</span>
+<span class="w">    </span><span class="na">default_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span>
+<span class="w">    </span><span class="na">max_ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="c1">   # never cache private responses at the CDN layer</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="c1">  # ── Public prefix: cached aggressively ────────────────────────────────</span>
 <span class="w">  </span><span class="nb">ordered_cache_behavior</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="na">path_pattern</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/public/*&quot;</span>
 <span class="w">    </span><span class="na">allowed_methods</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;GET&quot;, &quot;HEAD&quot;</span><span class="p">]</span>
@@ -483,29 +586,9 @@ environment.</p>
 <span class="w">      </span><span class="nb">cookies</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="na">forward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="w">    </span><span class="p">}</span>
 
-<span class="c1">    # Long TTL for public assets (they are content-addressed or versioned).</span>
 <span class="w">    </span><span class="na">min_ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">0</span>
-<span class="w">    </span><span class="na">default_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">86400</span><span class="c1">     # 1 day</span>
-<span class="w">    </span><span class="na">max_ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">31536000</span><span class="c1">  # 1 year</span>
-<span class="w">  </span><span class="p">}</span>
-
-<span class="c1">  # Private prefix — short TTL, no caching of auth state.</span>
-<span class="w">  </span><span class="nb">ordered_cache_behavior</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="na">path_pattern</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/private/*&quot;</span>
-<span class="w">    </span><span class="na">allowed_methods</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;GET&quot;, &quot;HEAD&quot;</span><span class="p">]</span>
-<span class="w">    </span><span class="na">cached_methods</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;GET&quot;, &quot;HEAD&quot;</span><span class="p">]</span>
-<span class="w">    </span><span class="na">target_origin_id</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;s3-assets&quot;</span>
-<span class="w">    </span><span class="na">viewer_protocol_policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;redirect-to-https&quot;</span>
-<span class="w">    </span><span class="na">compress</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="no">true</span>
-
-<span class="w">    </span><span class="nb">forwarded_values</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="na">query_string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span><span class="c1">   # preserve presigned URL query params</span>
-<span class="w">      </span><span class="nb">cookies</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="na">forward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="w"> </span><span class="p">}</span>
-<span class="w">    </span><span class="p">}</span>
-
-<span class="w">    </span><span class="na">min_ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">0</span>
-<span class="w">    </span><span class="na">default_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span>
-<span class="w">    </span><span class="na">max_ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="c1">  # never cache private responses at the CDN layer</span>
+<span class="w">    </span><span class="na">default_ttl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">86400</span><span class="c1">    # 1 day</span>
+<span class="w">    </span><span class="na">max_ttl</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="m">31536000</span><span class="c1"> # 1 year</span>
 <span class="w">  </span><span class="p">}</span>
 
 <span class="w">  </span><span class="nb">default_cache_behavior</span><span class="w"> </span><span class="p">{</span>
@@ -531,27 +614,27 @@ environment.</p>
 <span class="c1">    # minimum_protocol_version = &quot;TLSv1.2_2021&quot;</span>
 <span class="w">  </span><span class="p">}</span>
 
-<span class="w">  </span><span class="nb">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span>
-<span class="w">    </span><span class="na">ManagedBy</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;terraform&quot;</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-
-<span class="c1"># Output the CDN domain to use as public_base_url</span>
-<span class="kr">output</span><span class="w"> </span><span class="nv">&quot;cdn_domain&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="na">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://${aws_cloudfront_distribution.assets.domain_name}&quot;</span>
+<span class="w">  </span><span class="nb">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="na">Environment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.environment</span><span class="p">,</span><span class="w"> </span><span class="na">ManagedBy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;terraform&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>
-<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># ─── iam.tf ──────────────────────────────────────────────────────────────────</span>
+<p><strong>IAM role for the application</strong></p>
+<p>The application role needs:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">s3:PutObject</span></code> / <code class="docutils literal notranslate"><span class="pre">s3:DeleteObject</span></code> — to upload and delete assets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">secretsmanager:GetSecretValue</span></code> — to fetch the CF private key at startup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cloudfront:CreateInvalidation</span></code> — optional, to invalidate CDN cache when
+an asset is updated or deleted.</p></li>
+</ul>
+<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># iam.tf</span>
 
 <span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_iam_role&quot;</span><span class="w"> </span><span class="nv">&quot;app&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="na">name</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;${var.environment}-granite-assets-app&quot;</span>
+<span class="w">  </span><span class="na">name</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;${var.environment}-assets-app&quot;</span>
 <span class="w">  </span><span class="na">assume_role_policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">data.aws_iam_policy_document.assume.json</span>
 <span class="p">}</span>
 
 <span class="kr">data</span><span class="w"> </span><span class="nc">&quot;aws_iam_policy_document&quot;</span><span class="w"> </span><span class="nv">&quot;assume&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="c1">  # Adjust principal to match your compute type (Lambda, ECS task, EC2).</span>
+<span class="c1">  # Adjust to your compute type: lambda.amazonaws.com, ecs-tasks.amazonaws.com, ec2.amazonaws.com …</span>
 <span class="w">  </span><span class="nb">statement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="na">actions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;sts:AssumeRole&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="nb">principals</span><span class="w"> </span><span class="p">{</span>
@@ -560,31 +643,113 @@ environment.</p>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
+
+<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_iam_role_policy&quot;</span><span class="w"> </span><span class="nv">&quot;app&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">role</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_iam_role.app.id</span>
+<span class="w">  </span><span class="na">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">data.aws_iam_policy_document.app.json</span>
+<span class="p">}</span>
+
+<span class="kr">data</span><span class="w"> </span><span class="nc">&quot;aws_iam_policy_document&quot;</span><span class="w"> </span><span class="nv">&quot;app&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nb">statement</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="na">actions</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:PutObject&quot;, &quot;s3:DeleteObject&quot;, &quot;s3:GetObject&quot;, &quot;s3:HeadObject&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="na">resources</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;${aws_s3_bucket.assets.arn}/*&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="nb">statement</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="na">actions</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;secretsmanager:GetSecretValue&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="na">resources</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">aws_secretsmanager_secret.cf_private_key.arn</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="c1">  # Optional: CDN cache invalidation when assets change</span>
+<span class="w">  </span><span class="nb">statement</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="na">actions</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;cloudfront:CreateInvalidation&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="na">resources</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">aws_cloudfront_distribution.assets.arn</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
+<p><strong>Outputs</strong></p>
+<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="kr">output</span><span class="w"> </span><span class="nv">&quot;cdn_domain&quot;</span><span class="w">             </span><span class="p">{</span><span class="w"> </span><span class="na">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://${aws_cloudfront_distribution.assets.domain_name}&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="kr">output</span><span class="w"> </span><span class="nv">&quot;cf_public_key_id&quot;</span><span class="w">       </span><span class="p">{</span><span class="w"> </span><span class="na">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_cloudfront_public_key.assets.id</span><span class="w"> </span><span class="p">}</span>
+<span class="kr">output</span><span class="w"> </span><span class="nv">&quot;cf_private_key_secret&quot;</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="na">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_secretsmanager_secret.cf_private_key.name</span><span class="w"> </span><span class="p">}</span>
+<span class="kr">output</span><span class="w"> </span><span class="nv">&quot;distribution_id&quot;</span><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="na">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_cloudfront_distribution.assets.id</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>Key pair length.</strong>  CloudFront requires RSA-2048.  Smaller keys are
+rejected by the API.</p>
+<p><strong>Key rotation.</strong>  To rotate: generate a new <code class="docutils literal notranslate"><span class="pre">tls_private_key</span></code>, upload a
+new <code class="docutils literal notranslate"><span class="pre">aws_cloudfront_public_key</span></code>, add it to the key group (both keys are
+active simultaneously during the rollout), update the secret, restart the
+application, then remove the old key from the key group.</p>
+<p><strong>Never commit the private key</strong> to version control.  The Terraform state
+file contains it — use a remote backend with encryption at rest (e.g. S3
+with SSE-KMS + DynamoDB state lock).</p>
+</div>
 </section>
-<section id="id2">
-<h3><a class="toc-backref" href="#id15" role="doc-backlink">Repository configuration</a><a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<section id="id3">
+<h3><a class="toc-backref" href="#id17" role="doc-backlink">Repository configuration</a><a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<p><strong>Recommended: private key fetched from Secrets Manager at startup</strong></p>
+<p>The application fetches the key once, caches it for the lifetime of the
+process, and never exposes it in environment variables or logs.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">boto3</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">,</span> <span class="n">build_asset_repository</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fetch_secret</span><span class="p">(</span><span class="n">arn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch a Secrets Manager secret once and cache the result.&quot;&quot;&quot;</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;secretsmanager&quot;</span><span class="p">,</span> <span class="n">region_name</span><span class="o">=</span><span class="n">region</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">client</span><span class="o">.</span><span class="n">get_secret_value</span><span class="p">(</span><span class="n">SecretId</span><span class="o">=</span><span class="n">arn</span><span class="p">)[</span><span class="s2">&quot;SecretString&quot;</span><span class="p">]</span>
+
+<span class="n">region</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;AWS_REGION&quot;</span><span class="p">,</span> <span class="s2">&quot;eu-west-1&quot;</span><span class="p">)</span>
+<span class="n">private_key_pem</span> <span class="o">=</span> <span class="n">_fetch_secret</span><span class="p">(</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CF_PRIVATE_KEY_SECRET_ARN&quot;</span><span class="p">],</span> <span class="n">region</span>
+<span class="p">)</span>
 
 <span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
     <span class="n">bucket</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ASSET_BUCKET&quot;</span><span class="p">],</span>
-    <span class="n">region</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;AWS_REGION&quot;</span><span class="p">,</span> <span class="s2">&quot;eu-west-1&quot;</span><span class="p">),</span>
-    <span class="c1"># CDN domain output by Terraform → stable, cacheable public URLs.</span>
-    <span class="n">public_base_url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CDN_DOMAIN&quot;</span><span class="p">),</span>
-    <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">900</span><span class="p">,</span>          <span class="c1"># 15 min for uploads/downloads</span>
+    <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CDN_DOMAIN&quot;</span><span class="p">],</span>  <span class="c1"># https://d111….cloudfront.net</span>
     <span class="n">key_prefix</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ASSET_KEY_PREFIX&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-    <span class="c1"># Leave access_key_id / secret_access_key as None</span>
-    <span class="c1"># to use the IAM role credential chain (recommended).</span>
+    <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+    <span class="c1"># CloudFront signed URL fields:</span>
+    <span class="n">cf_key_id</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CF_KEY_ID&quot;</span><span class="p">],</span>       <span class="c1"># KXXXXXXXXXXXXX (from Terraform output)</span>
+    <span class="n">cf_private_key</span><span class="o">=</span><span class="n">private_key_pem</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </pre></div>
 </div>
+<p><strong>Alternative: inline PEM via environment variable</strong></p>
+<p>Less secure (the key is visible in the process environment) but simpler for
+development or environments without Secrets Manager.  Represent newlines as
+literal <code class="docutils literal notranslate"><span class="pre">\n</span></code> when setting the variable:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CF_PRIVATE_KEY</span><span class="o">=</span><span class="s2">&quot;-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----&quot;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ASSET_BUCKET&quot;</span><span class="p">],</span>
+    <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CDN_DOMAIN&quot;</span><span class="p">],</span>
+    <span class="n">cf_key_id</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CF_KEY_ID&quot;</span><span class="p">],</span>
+    <span class="n">cf_private_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CF_PRIVATE_KEY&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">n&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Plain CloudFront URLs (no signing)</strong></p>
+<p>If your distribution has no <code class="docutils literal notranslate"><span class="pre">trusted_key_groups</span></code> restriction and you only
+need to hide the S3 domain, set <code class="docutils literal notranslate"><span class="pre">cf_unsigned_urls=True</span></code>.  The URL is
+permanent — enforce access control at the application layer.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ASSET_BUCKET&quot;</span><span class="p">],</span>
+    <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CDN_DOMAIN&quot;</span><span class="p">],</span>
+    <span class="n">cf_unsigned_urls</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>   <span class="c1"># plain https://d111….cloudfront.net/private/…</span>
+<span class="p">)</span>
+</pre></div>
+</div>
 </section>
-<section id="id3">
-<h3><a class="toc-backref" href="#id16" role="doc-backlink">Upload flow</a><a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Your API generates a presigned upload URL</span>
+<section id="id4">
+<h3><a class="toc-backref" href="#id18" role="doc-backlink">Upload flow</a><a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Generate a presigned PUT URL</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span>
     <span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
     <span class="s2">&quot;application/pdf&quot;</span><span class="p">,</span>
@@ -596,61 +761,118 @@ environment.</p>
 
 <span class="c1"># 2. Return the result JSON to the client</span>
 
-<span class="c1"># 3. The client PUTs the file directly to S3 — no server bandwidth used</span>
+<span class="c1"># 3. Client PUTs the file directly to S3 — no server bandwidth used</span>
 </pre></div>
 </div>
-<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Browser / Node.js</span>
-<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">result</span><span class="p">.</span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">result</span><span class="p">.</span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">method</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">headers</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nx">fileBlob</span><span class="p">,</span>
 <span class="p">});</span>
-
-<span class="c1">// Notify your backend that the upload is complete</span>
-<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/confirm&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">key</span><span class="w"> </span><span class="p">}),</span>
-<span class="p">});</span>
+<span class="c1">// Notify backend that upload is complete</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/confirm&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">key</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">});</span>
 </pre></div>
 </div>
 </section>
 <section id="download-flow">
-<h3><a class="toc-backref" href="#id17" role="doc-backlink">Download flow</a><a class="headerlink" href="#download-flow" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Public asset — permanent CloudFront URL</span>
-<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://d111111abcdef8.cloudfront.net/public/avatars/…</span>
+<h3><a class="toc-backref" href="#id19" role="doc-backlink">Download flow</a><a class="headerlink" href="#download-flow" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Public asset — permanent CloudFront URL, no signature needed</span>
+<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;public/avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://d111….cloudfront.net/public/avatars/user-42.jpg</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># True</span>
 
-<span class="c1"># Private asset — presigned S3 URL (time-limited)</span>
-<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://my-bucket.s3.eu-west-1.amazonaws.com/…?X-Amz-…</span>
+<span class="c1"># Private asset — CloudFront signed URL (time-limited)</span>
+<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;private/invoices/inv-001.pdf&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://d111….cloudfront.net/private/…?Expires=…&amp;Signature=…</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># False</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span>   <span class="c1"># datetime(…, tzinfo=UTC)</span>
 </pre></div>
 </div>
-</section>
-<section id="s3-event-notifications-optional">
-<h3><a class="toc-backref" href="#id18" role="doc-backlink">S3 event notifications (optional)</a><a class="headerlink" href="#s3-event-notifications-optional" title="Link to this heading"></a></h3>
-<p>Instead of having the client call a <code class="docutils literal notranslate"><span class="pre">/confirm</span></code> endpoint, you can configure
-S3 event notifications to trigger a Lambda or SQS message when an object is
-created.  This is more robust — the event fires even if the client disconnects
-before calling your API.</p>
-<div class="highlight-hcl notranslate"><div class="highlight"><pre><span></span><span class="c1"># s3.tf — add to the aws_s3_bucket resource</span>
-<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_s3_bucket_notification&quot;</span><span class="w"> </span><span class="nv">&quot;uploads&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="na">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_s3_bucket.assets.id</span>
-
-<span class="w">  </span><span class="nb">lambda_function</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="na">lambda_function_arn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_lambda_function.post_upload.arn</span>
-<span class="w">    </span><span class="na">events</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:ObjectCreated:*&quot;</span><span class="p">]</span>
-<span class="w">    </span><span class="na">filter_prefix</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="c1">   # all prefixes; narrow as needed</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>CloudFront strips the <code class="docutils literal notranslate"><span class="pre">?Expires</span></code>, <code class="docutils literal notranslate"><span class="pre">?Signature</span></code>, and <code class="docutils literal notranslate"><span class="pre">?Key-Pair-Id</span></code>
+query parameters before forwarding the request to S3 via OAC.  S3 never
+sees the auth parameters — it only sees a valid OAC-signed request.</p>
 </div>
 </section>
+<section id="environment-variables-reference">
+<h3><a class="toc-backref" href="#id20" role="doc-backlink">Environment variables reference</a><a class="headerlink" href="#environment-variables-reference" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Variable</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Example</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ASSET_BUCKET</span></code></p></td>
+<td><p>S3 bucket name</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">prod-my-assets</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">AWS_REGION</span></code></p></td>
+<td><p>AWS region</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">eu-west-1</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CDN_DOMAIN</span></code></p></td>
+<td><p>CloudFront distribution domain</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">https://d111….cf.net</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CF_KEY_ID</span></code></p></td>
+<td><p>CloudFront public key ID</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">KXXXXXXXXXXXXX</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CF_PRIVATE_KEY_SECRET_ARN</span></code></p></td>
+<td><p>Secrets Manager ARN of the private key</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">arn:aws:secretsmanager…</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CF_PRIVATE_KEY</span></code></p></td>
+<td><p>Inline PEM (alternative to secret ARN)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">-----BEGIN</span> <span class="pre">RSA</span> <span class="pre">…</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ASSET_KEY_PREFIX</span></code></p></td>
+<td><p>S3 key prefix (e.g. <code class="docutils literal notranslate"><span class="pre">assets</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">assets</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ASSET_PRESIGN_TTL_SECONDS</span></code></p></td>
+<td><p>Default TTL for signed/presigned URLs</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">3600</span></code></p></td>
+</tr>
+</tbody>
+</table>
 </section>
+<section id="troubleshooting">
+<h3><a class="toc-backref" href="#id21" role="doc-backlink">Troubleshooting</a><a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h3>
+<p><strong>403 Access Denied — ``server: AmazonS3`` in response headers</strong></p>
+<blockquote>
+<div><p>The S3 bucket policy does not allow the CloudFront OAC to read the requested
+path.  Check that both <code class="docutils literal notranslate"><span class="pre">AllowCloudFrontPublic</span></code> and <code class="docutils literal notranslate"><span class="pre">AllowCloudFrontPrivate</span></code>
+statements are present in the bucket policy, and that the condition ARN
+matches your distribution.</p>
+</div></blockquote>
+<p><strong>403 Access Denied — ``x-cache: Error from cloudfront`` but no S3 header</strong></p>
+<blockquote>
+<div><p>CloudFront rejected the request before it reached S3.  Most likely causes:</p>
+<ul class="simple">
+<li><p>The URL has expired (<code class="docutils literal notranslate"><span class="pre">Expires</span></code> timestamp in the past).</p></li>
+<li><p>The signature is invalid — the <code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> used to sign does not belong
+to the <code class="docutils literal notranslate"><span class="pre">trusted_key_groups</span></code> configured on the cache behavior.</p></li>
+<li><p>The cache behavior for <code class="docutils literal notranslate"><span class="pre">/private/*</span></code> is missing <code class="docutils literal notranslate"><span class="pre">trusted_key_groups</span></code>.</p></li>
+</ul>
+</div></blockquote>
+<p><strong>403 Access Denied — ``TrustedKeyGroupDoesNotExist`` when updating distribution</strong></p>
+<blockquote>
+<div><p>The key group ID passed to <code class="docutils literal notranslate"><span class="pre">trusted_key_groups</span></code> does not exist.  Run
+<code class="docutils literal notranslate"><span class="pre">aws</span> <span class="pre">cloudfront</span> <span class="pre">list-key-groups</span></code> to get the correct ID.</p>
+</div></blockquote>
+<p><strong>Signed URL works with ``key_prefix=””`` but 403 with the real prefix</strong></p>
+<blockquote>
+<div><p>The URL path must match the cache behavior pattern.  If <code class="docutils literal notranslate"><span class="pre">key_prefix=&quot;assets&quot;</span></code>
+the generated URL is <code class="docutils literal notranslate"><span class="pre">/assets/private/…</span></code> — make sure the CloudFront
+<code class="docutils literal notranslate"><span class="pre">ordered_cache_behavior</span></code> uses <code class="docutils literal notranslate"><span class="pre">path_pattern</span> <span class="pre">=</span> <span class="pre">&quot;/assets/private/*&quot;</span></code>
+(not just <code class="docutils literal notranslate"><span class="pre">/private/*</span></code>).</p>
+</div></blockquote>
 <hr class="docutils" />
-<section id="choosing-a-backend">
-<h2><a class="toc-backref" href="#id19" role="doc-backlink">Choosing a Backend</a><a class="headerlink" href="#choosing-a-backend" title="Link to this heading"></a></h2>
 <table class="docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"></th>
@@ -696,6 +918,7 @@ before calling your API.</p>
 <p>The Python API — <code class="docutils literal notranslate"><span class="pre">build_upload_url</span></code>, <code class="docutils literal notranslate"><span class="pre">build_download_url</span></code>, <code class="docutils literal notranslate"><span class="pre">save</span></code>, etc. —
 is <strong>identical</strong> regardless of which backend you choose.  Switching from local
 to S3 only requires replacing the configuration dataclass.</p>
+</section>
 </section>
 </section>
 

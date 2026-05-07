@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import BinaryIO
 
-from granite_assets.enums import AssetVisibility
+from granite_assets.enums import AssetVisibility, CfSigningMethod
 
 # ---------------------------------------------------------------------------
 # Input / request models
@@ -153,9 +153,35 @@ class UploadUrlResult:
     key: str
 
 
-# ---------------------------------------------------------------------------
-# Configuration models
-# ---------------------------------------------------------------------------
+@dataclass(slots=True, frozen=True)
+class CfSignedCookies:
+    """CloudFront signed-cookie values to be set on the response.
+
+    All three cookies are required by CloudFront.  Set them with
+    ``HttpOnly; Secure; SameSite=None`` so the browser sends them on
+    cross-origin CloudFront requests.
+
+    Attributes:
+        policy:       Base64-encoded custom policy (``CloudFront-Policy`` cookie).
+        signature:    RSA-SHA1 signature of the policy (``CloudFront-Signature``).
+        key_pair_id:  CloudFront key-pair ID (``CloudFront-Key-Pair-Id``).
+        expires_at:   When the authorisation expires.
+    """
+
+    policy: str
+    signature: str
+    key_pair_id: str
+    expires_at: datetime
+
+    def as_cookie_header_values(self) -> dict[str, str]:
+        """Return a mapping of cookie name → value ready for ``Set-Cookie``."""
+        return {
+            "CloudFront-Policy": self.policy,
+            "CloudFront-Signature": self.signature,
+            "CloudFront-Key-Pair-Id": self.key_pair_id,
+        }
+
+
 
 
 @dataclass(slots=True)
@@ -293,7 +319,50 @@ class S3AssetRepositoryConfig:
     access_key_id: str | None = None
     secret_access_key: str | None = None
     session_token: str | None = None
+    cf_key_id: str | None = None
+    """CloudFront key-pair ID (``KXXXXXXXXXXXXX``). When set together with
+    ``cf_private_key``, :meth:`build_download_url` generates a CloudFront
+    signed URL instead of an S3 presigned URL."""
+    cf_private_key: str | None = None
+    """PEM-encoded RSA private key matching ``cf_key_id``. May be the raw PEM
+    string (``-----BEGIN RSA PRIVATE KEY-----\\n...``) or a path to a file
+    (not recommended; prefer injecting the value from a secret manager)."""
+    cf_unsigned_urls: bool = False
+    """When ``True`` **and** ``public_base_url`` is set, :meth:`build_download_url`
+    returns a plain CloudFront URL (no signature, no expiry) instead of an S3
+    presigned URL.  Use this when the CloudFront distribution has no *Restrict
+    Viewer Access* policy and the bucket is only accessible via CloudFront OAC.
+    The S3 bucket remains private; the URL is permanent (``expires_at=None``).
+
+    Security trade-off: the URL does not expire — anyone who obtains it can
+    access the asset indefinitely.  For time-limited access set ``cf_key_id``
+    and ``cf_private_key`` instead.
+
+    ``has_cf_signing()`` takes precedence: if both signing keys and this flag
+    are set, CloudFront signed URLs are used."""
+    cf_signing_method: CfSigningMethod = CfSigningMethod.URL
+    """Controls whether access credentials are embedded in the URL (default) or
+    issued as signed cookies.  See :class:`~granite_assets.enums.CfSigningMethod`.
+
+    - ``URL``    – :meth:`build_download_url` returns a CloudFront signed URL
+      (query-param credentials).  Works everywhere, no cookie handling needed.
+    - ``COOKIE`` – :meth:`build_download_url` returns a plain (unsigned)
+      CloudFront URL.  The caller must first obtain cookies via
+      :meth:`build_signed_cookies` and set them on the browser.
+    """
 
     def presign_ttl(self) -> timedelta:
         """Convenience accessor returning the TTL as a :class:`timedelta`."""
         return timedelta(seconds=self.presign_ttl_seconds)
+
+    def has_cf_signing(self) -> bool:
+        """Return True when both CloudFront signing fields are present."""
+        return bool(self.cf_key_id and self.cf_private_key)
+
+    def has_cf_unsigned_url(self) -> bool:
+        """Return True when plain (unsigned) CloudFront URL delivery is active.
+
+        Requires ``cf_unsigned_urls=True`` *and* ``public_base_url`` to be set.
+        ``has_cf_signing()`` takes precedence over this flag.
+        """
+        return self.cf_unsigned_urls and bool(self.public_base_url)
