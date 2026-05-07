@@ -116,7 +116,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span><span class="p">,</span> <span class="n">CfSigningMethod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">AssetConfigurationError</span><span class="p">,</span>
     <span class="n">AssetError</span><span class="p">,</span>
@@ -127,6 +127,7 @@
     <span class="n">AssetDescriptor</span><span class="p">,</span>
     <span class="n">AssetSaveRequest</span><span class="p">,</span>
     <span class="n">AssetSaveResult</span><span class="p">,</span>
+    <span class="n">CfSignedCookies</span><span class="p">,</span>
     <span class="n">S3AssetRepositoryConfig</span><span class="p">,</span>
     <span class="n">UploadUrlResult</span><span class="p">,</span>
 <span class="p">)</span>
@@ -136,6 +137,17 @@
     <span class="kn">from</span><span class="w"> </span><span class="nn">mypy_boto3_s3</span><span class="w"> </span><span class="kn">import</span> <span class="n">S3Client</span>  <span class="c1"># noqa: F401</span>
 
 <span class="n">_BACKEND_NAME</span> <span class="o">=</span> <span class="s2">&quot;S3AssetRepository&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_cf_url_safe_base64</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;CloudFront-specific URL-safe base64 encoding.</span>
+
+<span class="sd">    Standard base64, then substitute: ``+`` → ``-``, ``=`` → ``_``, ``/`` → ``~``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+
+    <span class="n">b64</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">b64</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="s2">&quot;~&quot;</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_require_boto3</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
@@ -240,10 +252,9 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_cf_signed_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s3_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a CloudFront signed URL for *s3_key* valid for *ttl* seconds.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a CloudFront signed URL (canned policy) for *s3_key*.</span>
 
-<span class="sd">        Uses ``botocore.signers.CloudFrontSigner`` which is bundled with boto3.</span>
-<span class="sd">        Requires ``cryptography`` (already a boto3 transitive dependency).</span>
+<span class="sd">        Uses ``Expires`` / ``Signature`` / ``Key-Pair-Id`` query params.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">botocore.signers</span><span class="w"> </span><span class="kn">import</span> <span class="n">CloudFrontSigner</span>
@@ -274,6 +285,57 @@
             <span class="n">resource_url</span><span class="p">,</span>
             <span class="n">date_less_than</span><span class="o">=</span><span class="n">expires_at</span><span class="p">,</span>
         <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_rsa_signer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``(rsa_sign_fn, private_key)`` for CloudFront custom-policy operations.</span>
+
+<span class="sd">        Lazily imports ``cryptography``; raises :exc:`AssetError` if missing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.hazmat.primitives</span><span class="w"> </span><span class="kn">import</span> <span class="n">hashes</span><span class="p">,</span> <span class="n">serialization</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.hazmat.primitives.asymmetric</span><span class="w"> </span><span class="kn">import</span> <span class="n">padding</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                <span class="s2">&quot;cryptography is required for CloudFront signed operations: &quot;</span>
+                <span class="s2">&quot;pip install cryptography&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+        <span class="n">pem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">cf_private_key</span>  <span class="c1"># type: ignore[assignment]</span>
+        <span class="n">private_key</span> <span class="o">=</span> <span class="n">serialization</span><span class="o">.</span><span class="n">load_pem_private_key</span><span class="p">(</span><span class="n">pem</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_rsa_sign</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">private_key</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">padding</span><span class="o">.</span><span class="n">PKCS1v15</span><span class="p">(),</span> <span class="n">hashes</span><span class="o">.</span><span class="n">SHA1</span><span class="p">())</span>  <span class="c1"># noqa: S303</span>
+
+        <span class="k">return</span> <span class="n">_rsa_sign</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_cf_custom_policy_params</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">resource_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute CloudFront custom-policy signing params for *resource_pattern*.</span>
+
+<span class="sd">        *resource_pattern* may contain a trailing wildcard</span>
+<span class="sd">        (``https://cdn.example.com/assets/private/videos/uuid/*``) so that a</span>
+<span class="sd">        single set of credentials authorises every segment of an HLS stream.</span>
+
+<span class="sd">        Returns ``(policy_b64, signature_b64, key_pair_id, unix_expires)``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+        <span class="n">_rsa_sign</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_rsa_signer</span><span class="p">()</span>
+        <span class="n">unix_expires</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">ttl</span>
+        <span class="n">policy_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;Statement&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;Resource&quot;</span><span class="p">:</span> <span class="n">resource_pattern</span><span class="p">,</span>
+                    <span class="s2">&quot;Condition&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;DateLessThan&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;AWS:EpochTime&quot;</span><span class="p">:</span> <span class="n">unix_expires</span><span class="p">}},</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">}</span>
+        <span class="n">policy_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">policy_dict</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">))</span>
+        <span class="n">policy_b64</span> <span class="o">=</span> <span class="n">_cf_url_safe_base64</span><span class="p">(</span><span class="n">policy_json</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+        <span class="n">signature_b64</span> <span class="o">=</span> <span class="n">_cf_url_safe_base64</span><span class="p">(</span><span class="n">_rsa_sign</span><span class="p">(</span><span class="n">policy_json</span><span class="o">.</span><span class="n">encode</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="n">policy_b64</span><span class="p">,</span> <span class="n">signature_b64</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">cf_key_id</span><span class="p">,</span> <span class="n">unix_expires</span>  <span class="c1"># type: ignore[return-value]</span>
 
     <span class="c1"># ------------------------------------------------------------------</span>
     <span class="c1"># Write operations</span>
@@ -474,19 +536,25 @@
 
 <span class="sd">        Priority order:</span>
 
-<span class="sd">        1. ``cf_key_id`` + ``cf_private_key`` set → **CloudFront signed URL**</span>
-<span class="sd">           (time-limited, never exposes S3).  Most secure option.</span>
-<span class="sd">        2. ``cf_unsigned_urls=True`` + ``public_base_url`` set → **plain</span>
-<span class="sd">           CloudFront URL** (permanent, no signature).  Suitable when the CF</span>
-<span class="sd">           distribution has no viewer-access restriction and the S3 bucket is</span>
-<span class="sd">           only reachable via CloudFront OAC.  The URL never expires.</span>
-<span class="sd">        3. Fallback → **S3 presigned URL** (time-limited but exposes the S3</span>
-<span class="sd">           domain).</span>
+<span class="sd">        1. ``cf_key_id`` + ``cf_private_key`` set **and** ``cf_signing_method=URL``</span>
+<span class="sd">           → **CloudFront signed URL** (canned policy, query-param credentials).</span>
+<span class="sd">        2. ``cf_key_id`` + ``cf_private_key`` set **and** ``cf_signing_method=COOKIE``</span>
+<span class="sd">           → **plain CloudFront URL** (no signature).  The browser must already</span>
+<span class="sd">           hold the signed cookies obtained via :meth:`build_signed_cookies`.</span>
+<span class="sd">        3. ``cf_unsigned_urls=True`` + ``public_base_url`` set</span>
+<span class="sd">           → **plain CloudFront URL** (permanent, no signature).</span>
+<span class="sd">        4. Fallback → **S3 presigned URL** (time-limited, exposes S3 domain).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">has_cf_signing</span><span class="p">():</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">cf_signing_method</span> <span class="o">==</span> <span class="n">CfSigningMethod</span><span class="o">.</span><span class="n">COOKIE</span><span class="p">:</span>
+                    <span class="c1"># Credentials are in browser cookies — return plain CF URL.</span>
+                    <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
+                    <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+                <span class="c1"># Default: URL-based signed URL (canned policy).</span>
                 <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
                 <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cf_signed_url</span><span class="p">(</span><span class="n">s3_key</span><span class="p">,</span> <span class="n">ttl</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span>
@@ -509,6 +577,116 @@
                 <span class="sa">f</span><span class="s2">&quot;Failed to generate signed download URL for </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
         <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="S3AssetRepository.build_path_signed_url">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.build_path_signed_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_path_signed_url</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">path_pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a CloudFront URL with **custom-policy** signing for *key*.</span>
+
+<span class="sd">        Unlike the canned-policy URL returned by :meth:`build_download_url`, the</span>
+<span class="sd">        custom policy can authorise a **wildcard path** so that a single set of</span>
+<span class="sd">        query-param credentials is valid for every file under a directory.  This</span>
+<span class="sd">        is the recommended approach for HLS/DASH video streaming where the player</span>
+<span class="sd">        autonomously fetches dozens of segment files.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key:          Logical key of the file whose URL is returned</span>
+<span class="sd">                          (e.g. ``&quot;private/videos/uuid/master.m3u8&quot;``).  Must</span>
+<span class="sd">                          not start with ``/``.</span>
+<span class="sd">            path_pattern: CloudFront resource pattern to embed in the policy.</span>
+<span class="sd">                          Accepts a trailing ``*`` wildcard</span>
+<span class="sd">                          (e.g. ``&quot;private/videos/uuid/*&quot;``).</span>
+<span class="sd">                          Defaults to the directory of *key* + ``/*``.</span>
+<span class="sd">            ttl_seconds:  URL lifetime in seconds (default: configured TTL).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`AssetAccessUrl` whose ``url`` carries</span>
+<span class="sd">            ``?Policy=…&amp;Signature=…&amp;Key-Pair-Id=…`` query params.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            :exc:`AssetConfigurationError`: if CloudFront signing is not configured.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">has_cf_signing</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">AssetConfigurationError</span><span class="p">(</span>
+                <span class="s2">&quot;cf_key_id and cf_private_key must be set to use build_path_signed_url&quot;</span>
+            <span class="p">)</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
+        <span class="n">s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">path_pattern</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Derive: strip filename, append /*</span>
+            <span class="n">directory</span> <span class="o">=</span> <span class="n">s3_key</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">s3_key</span> <span class="k">else</span> <span class="n">s3_key</span>
+            <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">/*&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">path_pattern</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">))</span>
+            <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="n">policy_b64</span><span class="p">,</span> <span class="n">sig_b64</span><span class="p">,</span> <span class="n">kp_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cf_custom_policy_params</span><span class="p">(</span>
+            <span class="n">resource_pattern</span><span class="p">,</span> <span class="n">ttl</span>
+        <span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;?Policy=</span><span class="si">{</span><span class="n">policy_b64</span><span class="si">}</span><span class="s2">&amp;Signature=</span><span class="si">{</span><span class="n">sig_b64</span><span class="si">}</span><span class="s2">&amp;Key-Pair-Id=</span><span class="si">{</span><span class="n">kp_id</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="S3AssetRepository.build_signed_cookies">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.build_signed_cookies">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_signed_cookies</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CfSignedCookies</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate CloudFront signed-cookie values for *key_pattern*.</span>
+
+<span class="sd">        Call this once per session (or per resource group) and set the returned</span>
+<span class="sd">        values as ``HttpOnly; Secure; SameSite=None`` cookies on the response.</span>
+<span class="sd">        The browser will then include them automatically on every CloudFront</span>
+<span class="sd">        request that matches the policy path.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key_pattern: Logical key pattern (may include a trailing ``*``</span>
+<span class="sd">                         wildcard) relative to the configured key prefix.</span>
+<span class="sd">                         Example: ``&quot;private/videos/uuid/*&quot;``.</span>
+<span class="sd">            ttl_seconds: Cookie lifetime in seconds (default: configured TTL).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            :class:`CfSignedCookies` with ``policy``, ``signature``, and</span>
+<span class="sd">            ``key_pair_id`` values ready to set as cookies.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            :exc:`AssetConfigurationError`: if CloudFront signing is not configured.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">has_cf_signing</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">AssetConfigurationError</span><span class="p">(</span>
+                <span class="s2">&quot;cf_key_id and cf_private_key must be set to use build_signed_cookies&quot;</span>
+            <span class="p">)</span>
+        <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
+        <span class="n">s3_pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key_pattern</span><span class="p">)</span>
+        <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_pattern</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="n">policy_b64</span><span class="p">,</span> <span class="n">sig_b64</span><span class="p">,</span> <span class="n">kp_id</span><span class="p">,</span> <span class="n">unix_expires</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cf_custom_policy_params</span><span class="p">(</span>
+            <span class="n">resource_pattern</span><span class="p">,</span> <span class="n">ttl</span>
+        <span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span>
+
+        <span class="k">return</span> <span class="n">CfSignedCookies</span><span class="p">(</span>
+            <span class="n">policy</span><span class="o">=</span><span class="n">policy_b64</span><span class="p">,</span>
+            <span class="n">signature</span><span class="o">=</span><span class="n">sig_b64</span><span class="p">,</span>
+            <span class="n">key_pair_id</span><span class="o">=</span><span class="n">kp_id</span><span class="p">,</span>
+            <span class="n">expires_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">unix_expires</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="n">UTC</span><span class="p">),</span>
+        <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="S3AssetRepository.build_upload_url">
