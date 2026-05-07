@@ -403,12 +403,51 @@
     <span class="n">access_key_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">secret_access_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">session_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">cf_key_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;CloudFront key-pair ID (``KXXXXXXXXXXXXX``). When set together with</span>
+<span class="sd">    ``cf_private_key``, :meth:`build_download_url` generates a CloudFront</span>
+<span class="sd">    signed URL instead of an S3 presigned URL.&quot;&quot;&quot;</span>
+    <span class="n">cf_private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;PEM-encoded RSA private key matching ``cf_key_id``. May be the raw PEM</span>
+<span class="sd">    string (``-----BEGIN RSA PRIVATE KEY-----\\n...``) or a path to a file</span>
+<span class="sd">    (not recommended; prefer injecting the value from a secret manager).&quot;&quot;&quot;</span>
+    <span class="n">cf_unsigned_urls</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;When ``True`` **and** ``public_base_url`` is set, :meth:`build_download_url`</span>
+<span class="sd">    returns a plain CloudFront URL (no signature, no expiry) instead of an S3</span>
+<span class="sd">    presigned URL.  Use this when the CloudFront distribution has no *Restrict</span>
+<span class="sd">    Viewer Access* policy and the bucket is only accessible via CloudFront OAC.</span>
+<span class="sd">    The S3 bucket remains private; the URL is permanent (``expires_at=None``).</span>
+
+<span class="sd">    Security trade-off: the URL does not expire — anyone who obtains it can</span>
+<span class="sd">    access the asset indefinitely.  For time-limited access set ``cf_key_id``</span>
+<span class="sd">    and ``cf_private_key`` instead.</span>
+
+<span class="sd">    ``has_cf_signing()`` takes precedence: if both signing keys and this flag</span>
+<span class="sd">    are set, CloudFront signed URLs are used.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="S3AssetRepositoryConfig.presign_ttl">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.presign_ttl">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">presign_ttl</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">timedelta</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenience accessor returning the TTL as a :class:`timedelta`.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">presign_ttl_seconds</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="S3AssetRepositoryConfig.has_cf_signing">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.has_cf_signing">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_cf_signing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when both CloudFront signing fields are present.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cf_key_id</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_private_key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="S3AssetRepositoryConfig.has_cf_unsigned_url">
+<a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.has_cf_unsigned_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_cf_unsigned_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when plain (unsigned) CloudFront URL delivery is active.</span>
+
+<span class="sd">        Requires ``cf_unsigned_urls=True`` *and* ``public_base_url`` to be set.</span>
+<span class="sd">        ``has_cf_signing()`` takes precedence over this flag.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_unsigned_urls</span> <span class="ow">and</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">public_base_url</span><span class="p">)</span></div>
 </div>
 
 </pre></div>

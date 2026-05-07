@@ -26,13 +26,11 @@ Design decisions
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from granite_assets.contracts import IAssetRepository
-from granite_assets.enums import AssetVisibility
+from granite_assets.enums import AssetVisibility, CfSigningMethod
 from granite_assets.exceptions import (
-    AssetAccessNotSupportedError,
     AssetConfigurationError,
     AssetError,
     AssetNotFoundError,
@@ -42,6 +40,7 @@ from granite_assets.models import (
     AssetDescriptor,
     AssetSaveRequest,
     AssetSaveResult,
+    CfSignedCookies,
     S3AssetRepositoryConfig,
     UploadUrlResult,
 )
@@ -51,6 +50,17 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client  # noqa: F401
 
 _BACKEND_NAME = "S3AssetRepository"
+
+
+def _cf_url_safe_base64(data: bytes) -> str:
+    """CloudFront-specific URL-safe base64 encoding.
+
+    Standard base64, then substitute: ``+`` → ``-``, ``=`` → ``_``, ``/`` → ``~``.
+    """
+    import base64
+
+    b64 = base64.b64encode(data).decode()
+    return b64.replace("+", "-").replace("=", "_").replace("/", "~")
 
 
 def _require_boto3() -> Any:
@@ -130,7 +140,7 @@ class S3AssetRepository:
         return ttl_seconds if ttl_seconds is not None else self._cfg.presign_ttl_seconds
 
     def _expires_at(self, ttl_seconds: int) -> datetime:
-        return datetime.now(tz=timezone.utc) + timedelta(seconds=ttl_seconds)
+        return datetime.now(tz=UTC) + timedelta(seconds=ttl_seconds)
 
     def _public_url_for_key(self, s3_key: str) -> str:
         if self._cfg.public_base_url:
@@ -140,6 +150,100 @@ class S3AssetRepository:
         bucket = self._cfg.bucket
         region = self._cfg.region
         return f"https://{bucket}.s3.{region}.amazonaws.com/{s3_key}"
+
+    def _cf_base_url(self) -> str:
+        """Return the CloudFront base URL, raising if not configured."""
+        if not self._cfg.public_base_url:
+            raise AssetConfigurationError(
+                "public_base_url must be set to use CloudFront signed URLs"
+            )
+        return self._cfg.public_base_url.rstrip("/")
+
+    def _build_cf_signed_url(self, s3_key: str, ttl: int) -> str:
+        """Generate a CloudFront signed URL (canned policy) for *s3_key*.
+
+        Uses ``Expires`` / ``Signature`` / ``Key-Pair-Id`` query params.
+        """
+        try:
+            from botocore.signers import CloudFrontSigner
+        except ImportError as exc:
+            raise AssetError(
+                "botocore is required for CloudFront signed URLs (install boto3)"
+            ) from exc
+
+        try:
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.primitives.asymmetric import padding
+        except ImportError as exc:
+            raise AssetError(
+                "cryptography is required for CloudFront signed URLs: pip install cryptography"
+            ) from exc
+
+        pem: str = self._cfg.cf_private_key  # type: ignore[assignment]
+        private_key = serialization.load_pem_private_key(pem.encode(), password=None)
+
+        def _rsa_sign(message: bytes) -> bytes:
+            return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
+
+        signer = CloudFrontSigner(self._cfg.cf_key_id, _rsa_sign)  # type: ignore[arg-type]
+        base = self._cf_base_url()
+        resource_url = f"{base}/{s3_key}"
+        expires_at = self._expires_at(ttl)
+        return signer.generate_presigned_url(
+            resource_url,
+            date_less_than=expires_at,
+        )
+
+    def _get_rsa_signer(self):
+        """Return ``(rsa_sign_fn, private_key)`` for CloudFront custom-policy operations.
+
+        Lazily imports ``cryptography``; raises :exc:`AssetError` if missing.
+        """
+        try:
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.primitives.asymmetric import padding
+        except ImportError as exc:
+            raise AssetError(
+                "cryptography is required for CloudFront signed operations: "
+                "pip install cryptography"
+            ) from exc
+
+        pem: str = self._cfg.cf_private_key  # type: ignore[assignment]
+        private_key = serialization.load_pem_private_key(pem.encode(), password=None)
+
+        def _rsa_sign(message: bytes) -> bytes:
+            return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
+
+        return _rsa_sign
+
+    def _build_cf_custom_policy_params(
+        self, resource_pattern: str, ttl: int
+    ) -> tuple[str, str, str, int]:
+        """Compute CloudFront custom-policy signing params for *resource_pattern*.
+
+        *resource_pattern* may contain a trailing wildcard
+        (``https://cdn.example.com/assets/private/videos/uuid/*``) so that a
+        single set of credentials authorises every segment of an HLS stream.
+
+        Returns ``(policy_b64, signature_b64, key_pair_id, unix_expires)``.
+        """
+        import json
+        import time
+
+        _rsa_sign = self._get_rsa_signer()
+        unix_expires = int(time.time()) + ttl
+        policy_dict = {
+            "Statement": [
+                {
+                    "Resource": resource_pattern,
+                    "Condition": {"DateLessThan": {"AWS:EpochTime": unix_expires}},
+                }
+            ]
+        }
+        policy_json = json.dumps(policy_dict, separators=(",", ":"))
+        policy_b64 = _cf_url_safe_base64(policy_json.encode())
+        signature_b64 = _cf_url_safe_base64(_rsa_sign(policy_json.encode()))
+        return policy_b64, signature_b64, self._cfg.cf_key_id, unix_expires  # type: ignore[return-value]
 
     # ------------------------------------------------------------------
     # Write operations
@@ -168,14 +272,15 @@ class S3AssetRepository:
         if request.content_length is not None:
             put_kwargs["ContentLength"] = request.content_length
 
-        if request.metadata:
-            put_kwargs["Metadata"] = request.metadata
+        # Always store visibility so that get_descriptor / resolve_access can
+        # reconstruct it without an extra get_object_acl call.
+        put_kwargs["Metadata"] = {
+            **(request.metadata or {}),
+            "x-visibility": request.visibility.value,
+        }
 
         if request.checksum:
-            put_kwargs["Metadata"] = {
-                **(put_kwargs.get("Metadata") or {}),
-                "x-checksum": request.checksum,
-            }
+            put_kwargs["Metadata"]["x-checksum"] = request.checksum
 
         try:
             response = self._s3.put_object(**put_kwargs)
@@ -275,12 +380,19 @@ class S3AssetRepository:
             raise AssetError(f"Failed to get descriptor for {key!r}: {exc}") from exc
 
         raw_meta: dict[str, str] = response.get("Metadata") or {}
+        visibility_str = raw_meta.get("x-visibility", "private")
+        visibility = (
+            AssetVisibility.PUBLIC
+            if visibility_str == "public"
+            else AssetVisibility.PRIVATE
+        )
         return AssetDescriptor(
             key=key,
             content_type=response.get("ContentType"),
             content_length=response.get("ContentLength"),
             last_modified=response.get("LastModified"),
             checksum=f"etag:{response.get('ETag', '').strip('\"')}",
+            visibility=visibility,
             metadata=raw_meta,
         )
 
@@ -305,21 +417,155 @@ class S3AssetRepository:
         return AssetAccessUrl(url=url, expires_at=None)
 
     def build_download_url(self, key: str, ttl_seconds: int | None = None) -> AssetAccessUrl:
-        """Generate a presigned GET URL for the asset."""
+        """Generate a download URL for a private asset.
+
+        Priority order:
+
+        1. ``cf_key_id`` + ``cf_private_key`` set **and** ``cf_signing_method=URL``
+           → **CloudFront signed URL** (canned policy, query-param credentials).
+        2. ``cf_key_id`` + ``cf_private_key`` set **and** ``cf_signing_method=COOKIE``
+           → **plain CloudFront URL** (no signature).  The browser must already
+           hold the signed cookies obtained via :meth:`build_signed_cookies`.
+        3. ``cf_unsigned_urls=True`` + ``public_base_url`` set
+           → **plain CloudFront URL** (permanent, no signature).
+        4. Fallback → **S3 presigned URL** (time-limited, exposes S3 domain).
+        """
         _assert_no_leading_slash(key)
-        ttl = self._effective_ttl(ttl_seconds)
         s3_key = self._s3_key(key)
         try:
+            if self._cfg.has_cf_signing():
+                if self._cfg.cf_signing_method == CfSigningMethod.COOKIE:
+                    # Credentials are in browser cookies — return plain CF URL.
+                    base = self._cf_base_url()
+                    return AssetAccessUrl(url=f"{base}/{s3_key}", expires_at=None)
+
+                # Default: URL-based signed URL (canned policy).
+                ttl = self._effective_ttl(ttl_seconds)
+                url = self._build_cf_signed_url(s3_key, ttl)
+                return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
+
+            if self._cfg.has_cf_unsigned_url():
+                base = self._cfg.public_base_url.rstrip("/")  # type: ignore[union-attr]
+                url = f"{base}/{s3_key}"
+                return AssetAccessUrl(url=url, expires_at=None)
+
+            ttl = self._effective_ttl(ttl_seconds)
             url = self._s3.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": self._cfg.bucket, "Key": s3_key},
                 ExpiresIn=ttl,
             )
+        except AssetError:
+            raise
         except Exception as exc:
             raise AssetError(
-                f"Failed to generate presigned download URL for {key!r}: {exc}"
+                f"Failed to generate signed download URL for {key!r}: {exc}"
             ) from exc
         return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
+
+    def build_path_signed_url(
+        self,
+        key: str,
+        *,
+        path_pattern: str | None = None,
+        ttl_seconds: int | None = None,
+    ) -> AssetAccessUrl:
+        """Generate a CloudFront URL with **custom-policy** signing for *key*.
+
+        Unlike the canned-policy URL returned by :meth:`build_download_url`, the
+        custom policy can authorise a **wildcard path** so that a single set of
+        query-param credentials is valid for every file under a directory.  This
+        is the recommended approach for HLS/DASH video streaming where the player
+        autonomously fetches dozens of segment files.
+
+        Args:
+            key:          Logical key of the file whose URL is returned
+                          (e.g. ``"private/videos/uuid/master.m3u8"``).  Must
+                          not start with ``/``.
+            path_pattern: CloudFront resource pattern to embed in the policy.
+                          Accepts a trailing ``*`` wildcard
+                          (e.g. ``"private/videos/uuid/*"``).
+                          Defaults to the directory of *key* + ``/*``.
+            ttl_seconds:  URL lifetime in seconds (default: configured TTL).
+
+        Returns:
+            :class:`AssetAccessUrl` whose ``url`` carries
+            ``?Policy=…&Signature=…&Key-Pair-Id=…`` query params.
+
+        Raises:
+            :exc:`AssetConfigurationError`: if CloudFront signing is not configured.
+        """
+        if not self._cfg.has_cf_signing():
+            raise AssetConfigurationError(
+                "cf_key_id and cf_private_key must be set to use build_path_signed_url"
+            )
+        _assert_no_leading_slash(key)
+        ttl = self._effective_ttl(ttl_seconds)
+        base = self._cf_base_url()
+        s3_key = self._s3_key(key)
+
+        if path_pattern is None:
+            # Derive: strip filename, append /*
+            directory = s3_key.rsplit("/", 1)[0] if "/" in s3_key else s3_key
+            resource_pattern = f"{base}/{directory}/*"
+        else:
+            _assert_no_leading_slash(path_pattern.lstrip("*").lstrip("/"))
+            resource_pattern = f"{base}/{self._s3_key(path_pattern)}"
+
+        policy_b64, sig_b64, kp_id, _ = self._build_cf_custom_policy_params(
+            resource_pattern, ttl
+        )
+        url = (
+            f"{base}/{s3_key}"
+            f"?Policy={policy_b64}&Signature={sig_b64}&Key-Pair-Id={kp_id}"
+        )
+        return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
+
+    def build_signed_cookies(
+        self,
+        key_pattern: str,
+        ttl_seconds: int | None = None,
+    ) -> CfSignedCookies:
+        """Generate CloudFront signed-cookie values for *key_pattern*.
+
+        Call this once per session (or per resource group) and set the returned
+        values as ``HttpOnly; Secure; SameSite=None`` cookies on the response.
+        The browser will then include them automatically on every CloudFront
+        request that matches the policy path.
+
+        Args:
+            key_pattern: Logical key pattern (may include a trailing ``*``
+                         wildcard) relative to the configured key prefix.
+                         Example: ``"private/videos/uuid/*"``.
+            ttl_seconds: Cookie lifetime in seconds (default: configured TTL).
+
+        Returns:
+            :class:`CfSignedCookies` with ``policy``, ``signature``, and
+            ``key_pair_id`` values ready to set as cookies.
+
+        Raises:
+            :exc:`AssetConfigurationError`: if CloudFront signing is not configured.
+        """
+        if not self._cfg.has_cf_signing():
+            raise AssetConfigurationError(
+                "cf_key_id and cf_private_key must be set to use build_signed_cookies"
+            )
+        ttl = self._effective_ttl(ttl_seconds)
+        base = self._cf_base_url()
+        s3_pattern = self._s3_key(key_pattern)
+        resource_pattern = f"{base}/{s3_pattern}"
+
+        policy_b64, sig_b64, kp_id, unix_expires = self._build_cf_custom_policy_params(
+            resource_pattern, ttl
+        )
+        from datetime import UTC
+
+        return CfSignedCookies(
+            policy=policy_b64,
+            signature=sig_b64,
+            key_pair_id=kp_id,
+            expires_at=datetime.fromtimestamp(unix_expires, tz=UTC),
+        )
 
     def build_upload_url(
         self,

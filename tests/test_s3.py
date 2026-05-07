@@ -10,10 +10,11 @@ pytest.importorskip("moto", reason="moto not installed (dev extra required)")
 import boto3  # noqa: E402
 from moto import mock_aws  # noqa: E402
 
-from granite_assets.enums import AssetVisibility  # noqa: E402
+from granite_assets.enums import AssetVisibility, CfSigningMethod  # noqa: E402
 from granite_assets.exceptions import AssetNotFoundError  # noqa: E402
 from granite_assets.models import (  # noqa: E402
     AssetSaveRequest,
+    CfSignedCookies,
     S3AssetRepositoryConfig,
 )
 from granite_assets.repositories.s3 import S3AssetRepository  # noqa: E402
@@ -297,3 +298,235 @@ def test_key_prefix(aws_credentials: None) -> None:
     response = client.list_objects_v2(Bucket=BUCKET, Prefix="tenant-a/assets/")
     keys = [obj["Key"] for obj in response.get("Contents", [])]
     assert "tenant-a/assets/file.txt" in keys
+
+
+# ---------------------------------------------------------------------------
+# CloudFront signing — fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def test_rsa_pem() -> str:
+    """Generate a throwaway 1024-bit RSA key for signing tests (speed over security)."""
+    pytest.importorskip("cryptography", reason="cryptography not installed")
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(
+        public_exponent=65537, key_size=1024, backend=default_backend()
+    )
+    return key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.TraditionalOpenSSL,
+        serialization.NoEncryption(),
+    ).decode()
+
+
+@pytest.fixture()
+def cf_url_config(test_rsa_pem: str) -> S3AssetRepositoryConfig:
+    """Config with CloudFront signing enabled in URL mode (default)."""
+    return S3AssetRepositoryConfig(
+        bucket=BUCKET,
+        region=REGION,
+        public_base_url="https://cdn.example.com",
+        presign_ttl_seconds=3600,
+        cf_key_id="TESTKEY123",
+        cf_private_key=test_rsa_pem,
+        cf_signing_method=CfSigningMethod.URL,
+    )
+
+
+@pytest.fixture()
+def cf_cookie_config(test_rsa_pem: str) -> S3AssetRepositoryConfig:
+    """Config with CloudFront signing enabled in COOKIE mode."""
+    return S3AssetRepositoryConfig(
+        bucket=BUCKET,
+        region=REGION,
+        public_base_url="https://cdn.example.com",
+        presign_ttl_seconds=3600,
+        cf_key_id="TESTKEY123",
+        cf_private_key=test_rsa_pem,
+        cf_signing_method=CfSigningMethod.COOKIE,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CloudFront signing — build_path_signed_url (custom policy)
+# ---------------------------------------------------------------------------
+
+
+@mock_aws
+def test_build_path_signed_url_contains_policy_param(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """Custom-policy URL must contain Policy= and Signature= (not Expires=)."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    result = repo.build_path_signed_url("private/videos/abc123/master.m3u8")
+    assert "Policy=" in result.url
+    assert "Signature=" in result.url
+    assert "Key-Pair-Id=TESTKEY123" in result.url
+    # Canned-policy param must NOT appear
+    assert "Expires=" not in result.url
+    assert result.expires_at is not None
+
+
+@mock_aws
+def test_build_path_signed_url_wildcard_resource_derived(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """When no path_pattern is given, resource in policy covers the directory with a wildcard."""
+    import base64
+    import json
+
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    result = repo.build_path_signed_url("private/videos/abc123/master.m3u8")
+
+    # Extract Policy= param and decode it
+    params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
+    policy_b64 = params["Policy"]
+    # Reverse CloudFront base64 encoding
+    policy_b64_standard = policy_b64.replace("-", "+").replace("_", "=").replace("~", "/")
+    policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
+
+    resource = policy["Statement"][0]["Resource"]
+    assert resource.endswith("/*"), f"Resource should end with /*, got: {resource!r}"
+    assert "private/videos/abc123/" in resource
+
+
+@mock_aws
+def test_build_path_signed_url_explicit_pattern(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """Explicit path_pattern is used verbatim in the signed policy."""
+    import base64
+    import json
+
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    result = repo.build_path_signed_url(
+        "private/videos/abc123/master.m3u8",
+        path_pattern="private/videos/abc123/*",
+    )
+    params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
+    policy_b64_standard = params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
+
+    resource = policy["Statement"][0]["Resource"]
+    assert "private/videos/abc123/*" in resource
+
+
+# ---------------------------------------------------------------------------
+# CloudFront signing — build_signed_cookies
+# ---------------------------------------------------------------------------
+
+
+@mock_aws
+def test_build_signed_cookies_returns_three_values(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """build_signed_cookies returns a CfSignedCookies with non-empty values."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    cookies = repo.build_signed_cookies("private/videos/abc123/*")
+
+    assert isinstance(cookies, CfSignedCookies)
+    assert cookies.policy
+    assert cookies.signature
+    assert cookies.key_pair_id == "TESTKEY123"
+    assert cookies.expires_at is not None
+
+
+@mock_aws
+def test_build_signed_cookies_as_cookie_header_values(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """as_cookie_header_values returns the three required CF cookie names."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    cookies = repo.build_signed_cookies("private/videos/abc123/*")
+    header_values = cookies.as_cookie_header_values()
+
+    assert "CloudFront-Policy" in header_values
+    assert "CloudFront-Signature" in header_values
+    assert "CloudFront-Key-Pair-Id" in header_values
+    assert header_values["CloudFront-Key-Pair-Id"] == "TESTKEY123"
+
+
+# ---------------------------------------------------------------------------
+# CloudFront signing — cookie mode in build_download_url
+# ---------------------------------------------------------------------------
+
+
+@mock_aws
+def test_build_download_url_cookie_mode_returns_plain_cf_url(
+    aws_credentials: None, cf_cookie_config: S3AssetRepositoryConfig
+) -> None:
+    """In COOKIE mode, build_download_url returns a plain CF URL (no signature params)."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_cookie_config)
+    repo.save(
+        AssetSaveRequest(key="private/video.mp4", source=b"data", content_type="video/mp4")
+    )
+
+    result = repo.build_download_url("private/video.mp4")
+
+    assert result.url.startswith("https://cdn.example.com/")
+    assert "Signature" not in result.url
+    assert "Policy" not in result.url
+    assert "Expires" not in result.url
+    # Plain URL — no expiry (cookies carry the expiry)
+    assert result.expires_at is None
+
+
+@mock_aws
+def test_build_download_url_url_mode_returns_signed_url(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """In URL mode (default), build_download_url returns a CloudFront signed URL."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+    repo.save(
+        AssetSaveRequest(key="private/doc.pdf", source=b"data", content_type="application/pdf")
+    )
+
+    result = repo.build_download_url("private/doc.pdf")
+
+    assert "Signature" in result.url
+    assert result.expires_at is not None
+

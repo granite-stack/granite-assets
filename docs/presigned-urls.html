@@ -60,7 +60,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#download-urls">Download URLs</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#s3-presigned-get">S3 — Presigned GET</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#s3-three-url-modes-for-private-assets">S3 — Three URL modes for private assets</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#local-nginx-secure-link">Local Nginx — Secure Link</a></li>
 </ul>
 </li>
@@ -141,7 +141,7 @@ configuration time.</p>
 </li>
 <li><p><a class="reference internal" href="#download-urls" id="id6">Download URLs</a></p>
 <ul>
-<li><p><a class="reference internal" href="#s3-presigned-get" id="id7">S3 — Presigned GET</a></p></li>
+<li><p><a class="reference internal" href="#s3-three-url-modes-for-private-assets" id="id7">S3 — Three URL modes for private assets</a></p></li>
 <li><p><a class="reference internal" href="#local-nginx-secure-link" id="id8">Local Nginx — Secure Link</a></p></li>
 </ul>
 </li>
@@ -335,12 +335,58 @@ library which handles creation + chunked PATCH automatically:</p>
 <hr class="docutils" />
 <section id="download-urls">
 <h2><a class="toc-backref" href="#id6" role="doc-backlink">Download URLs</a><a class="headerlink" href="#download-urls" title="Link to this heading"></a></h2>
-<section id="s3-presigned-get">
-<h3><a class="toc-backref" href="#id7" role="doc-backlink">S3 — Presigned GET</a><a class="headerlink" href="#s3-presigned-get" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span>
-    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
-    <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>   <span class="c1"># 5 minutes</span>
+<section id="s3-three-url-modes-for-private-assets">
+<h3><a class="toc-backref" href="#id7" role="doc-backlink">S3 — Three URL modes for private assets</a><a class="headerlink" href="#s3-three-url-modes-for-private-assets" title="Link to this heading"></a></h3>
+<p>The S3 backend supports three URL modes for <code class="docutils literal notranslate"><span class="pre">build_download_url</span></code>, selected
+by the configuration fields you set.  See <a class="reference internal" href="infrastructure.html#download-url-modes"><span class="std std-ref">Download URL modes</span></a> in the
+infrastructure guide for a full comparison.</p>
+<p><strong>Mode 1 — CloudFront signed URL</strong> (recommended for production)</p>
+<p>Requires a CloudFront key pair and <code class="docutils literal notranslate"><span class="pre">trusted_key_groups</span></code> on the cache
+behavior.  The URL is time-limited and never exposes the S3 domain.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">,</span> <span class="n">build_asset_repository</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-bucket&quot;</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">&quot;https://d111….cloudfront.net&quot;</span><span class="p">,</span>
+    <span class="n">cf_key_id</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CF_KEY_ID&quot;</span><span class="p">],</span>
+    <span class="n">cf_private_key</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;/path/to/private_key.pem&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span>
+    <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://d111….cloudfront.net/private/…?Expires=…&amp;Signature=…</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span>   <span class="c1"># datetime (UTC)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># False</span>
+</pre></div>
+</div>
+<p><strong>Mode 2 — Plain CloudFront URL</strong> (permanent, no signing)</p>
+<p>Set <code class="docutils literal notranslate"><span class="pre">cf_unsigned_urls=True</span></code> when no viewer-access restriction is required.
+The URL is permanent; protect access at the application layer.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-bucket&quot;</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">&quot;https://d111….cloudfront.net&quot;</span><span class="p">,</span>
+    <span class="n">cf_unsigned_urls</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://d111….cloudfront.net/private/invoices/inv-001.pdf</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># True</span>
+</pre></div>
+</div>
+<p><strong>Mode 3 — S3 presigned URL</strong> (fallback, no CloudFront fields set)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-bucket&quot;</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
+    <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>          <span class="c1"># https://my-bucket.s3.eu-west-1.amazonaws.com/...</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span>   <span class="c1"># datetime (UTC)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span> <span class="c1"># False</span>
