@@ -24,13 +24,19 @@ class AssetSaveRequest:
     """All the information needed to persist a new asset.
 
     Attributes:
-        key:          Logical key that uniquely identifies the asset within the
-                      repository (e.g. ``"invoices/2024/inv-001.pdf"``).  It must
-                      not contain a leading slash.
         source:       Readable binary stream with the asset content.
         content_type: MIME type (e.g. ``"application/pdf"``).
+        key:          Logical key that uniquely identifies the asset within the
+                      repository (e.g. ``"invoices/2024/inv-001.pdf"``).  It must
+                      not contain a leading slash.  When *None* (default) the
+                      repository auto-generates a namespaced key of the form
+                      ``<uuid>/<uuid>.<ext>``, where the extension is derived
+                      from *filename*.  The resolved key is always returned in
+                      :class:`AssetSaveResult`.
         visibility:   Whether the asset will be publicly accessible or private.
         filename:     Original human-readable filename, stored as metadata.
+                      Required when *key* is omitted (used to derive the file
+                      extension for the auto-generated key).
         content_length: Byte size of the asset when known; used to set
                       ``Content-Length`` headers on upload.
         checksum:     Optional integrity hash (e.g. ``"md5:abc123"``).
@@ -41,9 +47,9 @@ class AssetSaveRequest:
                       per-request override even when the global config differs.
     """
 
-    key: str
     source: BinaryIO | bytes
     content_type: str
+    key: str | None = None
     visibility: AssetVisibility = AssetVisibility.PRIVATE
     filename: str | None = None
     content_length: int | None = None
@@ -350,6 +356,12 @@ class S3AssetRepositoryConfig:
       CloudFront URL.  The caller must first obtain cookies via
       :meth:`build_signed_cookies` and set them on the browser.
     """
+    use_object_acl: bool = True
+    """When ``True`` (default), ``PutObject`` requests include an S3 object ACL
+    (``public-read`` for public assets, none for private).  Set to ``False``
+    when the bucket has *Object Ownership* = ``BucketOwnerEnforced`` and ACLs
+    are disabled — visibility is then expressed solely via key prefix and bucket
+    policy / CloudFront OAC rather than per-object ACLs."""
 
     def presign_ttl(self) -> timedelta:
         """Convenience accessor returning the TTL as a :class:`timedelta`."""
