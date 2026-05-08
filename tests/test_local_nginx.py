@@ -118,6 +118,64 @@ def test_leading_slash_raises(repo: LocalNginxAssetRepository) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Auto-generated key: <uuid>/<uuid>.<ext>
+# ---------------------------------------------------------------------------
+
+
+def test_save_without_key_generates_uuid_folder_structure(
+    repo: LocalNginxAssetRepository, storage_path: Path
+) -> None:
+    """When key is omitted, save() must store the file at <uuid>/<uuid>.<ext>."""
+    result = repo.save(
+        AssetSaveRequest(source=b"img", content_type="image/png", filename="photo.png")
+    )
+
+    parts = result.key.split("/")
+    assert len(parts) == 2, f"Expected <uuid>/<uuid>.ext, got {result.key!r}"
+    folder, filename_with_ext = parts
+    stem, ext = filename_with_ext.rsplit(".", 1)
+    assert folder == stem, "Folder UUID must match filename UUID"
+    assert ext == "png"
+
+
+def test_save_without_key_file_exists_on_disk(
+    repo: LocalNginxAssetRepository, storage_path: Path
+) -> None:
+    """The auto-generated key must correspond to a real file on disk."""
+    result = repo.save(
+        AssetSaveRequest(source=b"hello", content_type="text/plain", filename="note.txt")
+    )
+
+    assert repo.exists(result.key)
+
+
+def test_save_without_key_no_extension(
+    repo: LocalNginxAssetRepository,
+) -> None:
+    """A file with no extension produces <uuid>/<uuid> (no trailing dot)."""
+    result = repo.save(
+        AssetSaveRequest(source=b"raw", content_type="application/octet-stream")
+    )
+
+    parts = result.key.split("/")
+    assert len(parts) == 2
+    assert parts[0] == parts[1], "Folder and filename UUIDs must match when no extension"
+
+
+def test_save_with_explicit_key_uses_it_unchanged(
+    repo: LocalNginxAssetRepository,
+) -> None:
+    """When key is provided explicitly it must be used as-is (backward compat)."""
+    result = repo.save(
+        AssetSaveRequest(
+            source=b"data", content_type="text/plain", key="docs/readme.txt"
+        )
+    )
+
+    assert result.key == "docs/readme.txt"
+
+
+# ---------------------------------------------------------------------------
 # delete
 # ---------------------------------------------------------------------------
 

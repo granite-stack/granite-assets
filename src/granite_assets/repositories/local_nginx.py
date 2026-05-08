@@ -45,9 +45,11 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import os
 import shutil
 import time
 import urllib.parse
+import uuid as _uuid_mod
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -74,6 +76,27 @@ _BACKEND_NAME = "LocalNginxAssetRepository"
 def _assert_no_leading_slash(key: str) -> None:
     if key.startswith("/"):
         raise AssetError(f"Asset key must not start with '/': {key!r}")
+
+
+def _resolve_asset_key(key: str | None, filename: str | None) -> str:
+    """Return the final storage key.
+
+    Three cases:
+    * *key* is ``None``  →  auto-generate ``<uuid>/<uuid>.<ext>``.
+    * *key* has no file extension  →  treat it as a folder prefix and append
+      ``/<last_segment><ext>`` so callers can pass ``visibility/uuid`` and get
+      back ``visibility/uuid/uuid.ext``.
+    * *key* has a file extension  →  use it unchanged (backward-compatible).
+    """
+    ext = os.path.splitext(filename or "")[1].lower()
+    if key is None:
+        asset_id = str(_uuid_mod.uuid4())
+        return f"{asset_id}/{asset_id}{ext}"
+    _, key_ext = os.path.splitext(key)
+    if not key_ext:
+        last_segment = key.rstrip("/").rsplit("/", 1)[-1]
+        return f"{key}/{last_segment}{ext}"
+    return key
 
 
 class LocalNginxAssetRepository:
@@ -265,9 +288,10 @@ class LocalNginxAssetRepository:
         Raises:
             AssetError: If the file already exists and *overwrite* is False.
         """
-        _assert_no_leading_slash(request.key)
+        key = _resolve_asset_key(request.key, request.filename)
+        _assert_no_leading_slash(key)
         overwrite = request.overwrite if request.overwrite is not None else self._cfg.overwrite
-        dest = self._full_path(request.key, request.visibility)
+        dest = self._full_path(key, request.visibility)
 
         if dest.exists() and not overwrite:
             raise AssetError(
@@ -290,11 +314,11 @@ class LocalNginxAssetRepository:
                     fh.write(chunk)
                     total += len(chunk)
         except OSError as exc:
-            raise AssetError(f"Failed to write asset {request.key!r}: {exc}") from exc
+            raise AssetError(f"Failed to write asset {key!r}: {exc}") from exc
 
         checksum = f"md5:{self._md5_of_file(dest)}"
         return AssetSaveResult(
-            key=request.key,
+            key=key,
             backend_ref=str(dest),
             content_length=total,
             checksum=checksum,

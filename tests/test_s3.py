@@ -352,6 +352,96 @@ def cf_cookie_config(test_rsa_pem: str) -> S3AssetRepositoryConfig:
 
 
 # ---------------------------------------------------------------------------
+# Auto-generated key: <uuid>/<uuid>.<ext>
+# ---------------------------------------------------------------------------
+
+
+@mock_aws
+def test_save_without_key_generates_uuid_folder_structure(
+    aws_credentials: None, config: S3AssetRepositoryConfig
+) -> None:
+    """When key is omitted, save() must store the file at <uuid>/<uuid>.<ext>."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(config)
+
+    result = repo.save(
+        AssetSaveRequest(source=b"data", content_type="image/png", filename="photo.png")
+    )
+
+    parts = result.key.split("/")
+    assert len(parts) == 2, f"Expected <uuid>/<uuid>.ext, got {result.key!r}"
+    folder, filename_with_ext = parts
+    stem, ext = filename_with_ext.rsplit(".", 1)
+    assert folder == stem, "Folder UUID must match filename UUID"
+    assert ext == "png"
+
+
+@mock_aws
+def test_save_without_key_asset_is_retrievable(
+    aws_credentials: None, config: S3AssetRepositoryConfig
+) -> None:
+    """The auto-generated key must actually be retrievable from S3."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(config)
+
+    result = repo.save(
+        AssetSaveRequest(source=b"hello", content_type="text/plain", filename="note.txt")
+    )
+
+    assert repo.exists(result.key)
+
+
+@mock_aws
+def test_save_without_key_no_extension(
+    aws_credentials: None, config: S3AssetRepositoryConfig
+) -> None:
+    """A file with no extension produces <uuid>/<uuid> (no trailing dot)."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(config)
+
+    result = repo.save(
+        AssetSaveRequest(source=b"raw", content_type="application/octet-stream")
+    )
+
+    parts = result.key.split("/")
+    assert len(parts) == 2
+    assert parts[0] == parts[1], "Folder and filename UUIDs must match when no extension"
+
+
+@mock_aws
+def test_save_with_explicit_key_uses_it_unchanged(
+    aws_credentials: None, config: S3AssetRepositoryConfig
+) -> None:
+    """When key is provided explicitly it must be used as-is (backward compat)."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(config)
+
+    result = repo.save(
+        AssetSaveRequest(
+            source=b"data", content_type="text/plain", key="custom/path/file.txt"
+        )
+    )
+
+    assert result.key == "custom/path/file.txt"
+
+
+# ---------------------------------------------------------------------------
 # CloudFront signing — build_path_signed_url (custom policy)
 # ---------------------------------------------------------------------------
 
@@ -527,6 +617,160 @@ def test_build_download_url_url_mode_returns_signed_url(
 
     result = repo.build_download_url("private/doc.pdf")
 
-    assert "Signature" in result.url
+    assert "Policy=" in result.url
+    assert "Signature=" in result.url
+    assert "Key-Pair-Id=" in result.url
+    assert "Expires=" not in result.url  # custom policy, not canned
     assert result.expires_at is not None
+
+
+# ---------------------------------------------------------------------------
+# CloudFront signing — build_folder_signed_url
+# ---------------------------------------------------------------------------
+
+_ASSET_UUID = "550e8400-e29b-41d4-a716-446655440000"
+_ASSET_KEY = f"assets/{_ASSET_UUID}/{_ASSET_UUID}.mp4"
+
+
+@mock_aws
+def test_build_folder_signed_url_points_to_entry_file(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """URL must point to <folder>/<entry_filename>, not to the original key."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    result = repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
+
+    # Base URL must contain the entry filename, not the source .mp4
+    assert "master.m3u8" in result.url
+    assert f"{_ASSET_UUID}.mp4" not in result.url.split("?")[0]
+    assert result.expires_at is not None
+
+
+@mock_aws
+def test_build_folder_signed_url_resource_is_wildcard(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """The policy Resource must be <cf_base>/<folder>/* (wildcard over the folder)."""
+    import base64
+    import json
+
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    result = repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
+
+    params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
+    policy_b64_standard = params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
+
+    resource = policy["Statement"][0]["Resource"]
+    expected_folder = f"assets/{_ASSET_UUID}"
+    assert resource.endswith("/*"), f"Resource should end with /*, got {resource!r}"
+    assert expected_folder in resource, f"Resource should contain folder, got {resource!r}"
+    # Must NOT reference the specific .mp4 file
+    assert f"{_ASSET_UUID}.mp4" not in resource
+
+
+@mock_aws
+def test_build_folder_signed_url_has_cf_params(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """URL must carry Policy=, Signature= and Key-Pair-Id= query params."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    result = repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
+
+    assert "Policy=" in result.url
+    assert "Signature=" in result.url
+    assert "Key-Pair-Id=TESTKEY123" in result.url
+    assert "Expires=" not in result.url  # custom policy, not canned
+
+
+@mock_aws
+def test_build_folder_signed_url_with_key_prefix(
+    aws_credentials: None, test_rsa_pem: str
+) -> None:
+    """key_prefix is included in both the S3 key and the CF resource pattern."""
+    import base64
+    import json
+
+    cfg = S3AssetRepositoryConfig(
+        bucket=BUCKET,
+        region=REGION,
+        public_base_url="https://cdn.example.com",
+        key_prefix="prod",
+        cf_key_id="TESTKEY123",
+        cf_private_key=test_rsa_pem,
+    )
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cfg)
+
+    result = repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
+
+    # The URL path should include the key_prefix
+    url_path = result.url.split("?")[0]
+    assert "prod/" in url_path
+
+    # The resource pattern in the policy should also include the key_prefix
+    params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
+    policy_b64_standard = params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
+    resource = policy["Statement"][0]["Resource"]
+    assert "prod/" in resource
+
+
+@mock_aws
+def test_build_folder_signed_url_root_key_raises(
+    aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
+) -> None:
+    """A root-level key (no '/') should raise AssetError."""
+    from granite_assets.exceptions import AssetError
+
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(cf_url_config)
+
+    with pytest.raises(AssetError, match="Cannot derive folder"):
+        repo.build_folder_signed_url("rootfile.mp4", entry_filename="master.m3u8")
+
+
+@mock_aws
+def test_build_folder_signed_url_requires_cf_config(
+    aws_credentials: None, config: S3AssetRepositoryConfig
+) -> None:
+    """Raises AssetConfigurationError when CF signing is not configured."""
+    from granite_assets.exceptions import AssetConfigurationError
+
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(config)  # no cf_key_id / cf_private_key
+
+    with pytest.raises(AssetConfigurationError):
+        repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
+
 

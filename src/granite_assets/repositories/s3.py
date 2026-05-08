@@ -26,6 +26,8 @@ Design decisions
 
 from __future__ import annotations
 
+import os
+import uuid as _uuid_mod
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -77,6 +79,27 @@ def _require_boto3() -> Any:
 def _assert_no_leading_slash(key: str) -> None:
     if key.startswith("/"):
         raise AssetError(f"Asset key must not start with '/': {key!r}")
+
+
+def _resolve_asset_key(key: str | None, filename: str | None) -> str:
+    """Return the final storage key.
+
+    Three cases:
+    * *key* is ``None``  →  auto-generate ``<uuid>/<uuid>.<ext>``.
+    * *key* has no file extension  →  treat it as a folder prefix and append
+      ``/<last_segment><ext>`` so callers can pass ``visibility/uuid`` and get
+      back ``visibility/uuid/uuid.ext``.
+    * *key* has a file extension  →  use it unchanged (backward-compatible).
+    """
+    ext = os.path.splitext(filename or "")[1].lower()
+    if key is None:
+        asset_id = str(_uuid_mod.uuid4())
+        return f"{asset_id}/{asset_id}{ext}"
+    _, key_ext = os.path.splitext(key)
+    if not key_ext:
+        last_segment = key.rstrip("/").rsplit("/", 1)[-1]
+        return f"{key}/{last_segment}{ext}"
+    return key
 
 
 class S3AssetRepository:
@@ -255,8 +278,9 @@ class S3AssetRepository:
         Sets ``ACL='public-read'`` for PUBLIC assets.  Metadata and checksum
         are forwarded as S3 object metadata.
         """
-        _assert_no_leading_slash(request.key)
-        s3_key = self._s3_key(request.key)
+        key = _resolve_asset_key(request.key, request.filename)
+        _assert_no_leading_slash(key)
+        s3_key = self._s3_key(key)
         stream = request.open_source()
 
         put_kwargs: dict[str, Any] = {
@@ -266,7 +290,7 @@ class S3AssetRepository:
             "ContentType": request.content_type,
         }
 
-        if request.visibility == AssetVisibility.PUBLIC:
+        if request.visibility == AssetVisibility.PUBLIC and self._cfg.use_object_acl:
             put_kwargs["ACL"] = "public-read"
 
         if request.content_length is not None:
@@ -285,11 +309,11 @@ class S3AssetRepository:
         try:
             response = self._s3.put_object(**put_kwargs)
         except Exception as exc:  # botocore.exceptions.ClientError
-            raise AssetError(f"Failed to save asset {request.key!r} to S3: {exc}") from exc
+            raise AssetError(f"Failed to save asset {key!r} to S3: {exc}") from exc
 
         etag: str = response.get("ETag", "").strip('"')
         return AssetSaveResult(
-            key=request.key,
+            key=key,
             backend_ref=f"s3://{self._cfg.bucket}/{s3_key}",
             checksum=f"etag:{etag}" if etag else None,
             visibility=request.visibility,
@@ -439,9 +463,18 @@ class S3AssetRepository:
                     base = self._cf_base_url()
                     return AssetAccessUrl(url=f"{base}/{s3_key}", expires_at=None)
 
-                # Default: URL-based signed URL (canned policy).
+                # Default: URL-based signed URL (custom policy, directory wildcard).
                 ttl = self._effective_ttl(ttl_seconds)
-                url = self._build_cf_signed_url(s3_key, ttl)
+                base = self._cf_base_url()
+                directory = s3_key.rsplit("/", 1)[0] if "/" in s3_key else s3_key
+                resource_pattern = f"{base}/{directory}/*"
+                policy_b64, sig_b64, kp_id, _ = self._build_cf_custom_policy_params(
+                    resource_pattern, ttl
+                )
+                url = (
+                    f"{base}/{s3_key}"
+                    f"?Policy={policy_b64}&Signature={sig_b64}&Key-Pair-Id={kp_id}"
+                )
                 return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
 
             if self._cfg.has_cf_unsigned_url():
@@ -517,6 +550,94 @@ class S3AssetRepository:
         )
         url = (
             f"{base}/{s3_key}"
+            f"?Policy={policy_b64}&Signature={sig_b64}&Key-Pair-Id={kp_id}"
+        )
+        return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
+
+    def build_folder_signed_url(
+        self,
+        key: str,
+        *,
+        entry_filename: str,
+        ttl_seconds: int | None = None,
+    ) -> AssetAccessUrl:
+        """Generate a CloudFront URL with **wildcard custom-policy** for the folder
+        of *key*, pointing to *entry_filename* within that folder.
+
+        This is the recommended method for composite assets such as HLS/DASH
+        video streams.  The source asset (e.g. a transcoded ``.mp4``) and the
+        player entry point (e.g. ``master.m3u8``) live in the same S3 folder.
+        A single set of credentials authorises the manifest **and** all segment
+        files that the player fetches from relative paths.
+
+        Usage example::
+
+            # key layout in S3:
+            #   assets/<uuid>/<uuid>.mp4       ← original source
+            #   assets/<uuid>/master.m3u8      ← HLS manifest
+            #   assets/<uuid>/1080p/index.m3u8
+            #   assets/<uuid>/1080p/seg000.ts  … seg009.ts
+
+            url = repo.build_folder_signed_url(
+                "assets/<uuid>/<uuid>.mp4",
+                entry_filename="master.m3u8",
+                ttl_seconds=7200,
+            )
+            # Returns:
+            #   https://<cf>/assets/<uuid>/master.m3u8
+            #       ?Policy=<wildcard over assets/<uuid>/*>
+            #       &Signature=...&Key-Pair-Id=...
+
+        Pass ``url.url`` directly to HLS.js as the source — the query-string
+        credentials are inherited by all relative segment requests.
+
+        Args:
+            key:            Logical key of **any** file that belongs to the
+                            target folder.  Used solely to derive the folder
+                            path; the URL will **not** point to this file.
+                            Example: ``"assets/<uuid>/<uuid>.mp4"``.
+            entry_filename: Filename of the player entry point within the same
+                            folder.  Example: ``"master.m3u8"``.
+            ttl_seconds:    Lifetime of the signing credentials in seconds
+                            (default: configured ``presign_ttl_seconds``).
+                            A new URL with a new expiry is generated on every
+                            call; credentials are not cached.
+
+        Returns:
+            :class:`AssetAccessUrl` whose ``url`` is
+            ``https://<cf>/<folder>/<entry_filename>?Policy=…&Signature=…&Key-Pair-Id=…``
+            and whose ``expires_at`` reflects the policy expiry.
+
+        Raises:
+            :exc:`AssetConfigurationError`: CloudFront signing is not configured
+                (``cf_key_id`` or ``cf_private_key`` not set).
+            :exc:`AssetError`: *key* has no directory component (it is a
+                root-level key with no ``/`` separator).
+        """
+        if not self._cfg.has_cf_signing():
+            raise AssetConfigurationError(
+                "cf_key_id and cf_private_key must be set to use build_folder_signed_url"
+            )
+        _assert_no_leading_slash(key)
+        s3_key = self._s3_key(key)
+
+        if "/" not in s3_key:
+            raise AssetError(
+                f"Cannot derive folder from root-level key {key!r}; "
+                "key must contain at least one '/' separator."
+            )
+
+        folder = s3_key.rsplit("/", 1)[0]  # e.g. "assets/<uuid>"
+        base = self._cf_base_url()
+        resource_pattern = f"{base}/{folder}/*"
+        ttl = self._effective_ttl(ttl_seconds)
+
+        policy_b64, sig_b64, kp_id, _ = self._build_cf_custom_policy_params(
+            resource_pattern, ttl
+        )
+        entry_s3_key = f"{folder}/{entry_filename}"
+        url = (
+            f"{base}/{entry_s3_key}"
             f"?Policy={policy_b64}&Signature={sig_b64}&Key-Pair-Id={kp_id}"
         )
         return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
