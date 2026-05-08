@@ -1,7 +1,7 @@
 
 [project]
 name = "granite-assets"
-version = "0.1.6"
+version = "0.1.7"
 description = "Portable asset repository abstraction for local and cloud storage backends"
 readme = "README.md"
 license = { text = "MIT" }
