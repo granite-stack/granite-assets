@@ -49,7 +49,23 @@ uv add granite-assets
 ```bash
 git clone https://github.com/granite-stack/granite-assets.git
 cd granite-assets
-uv sync
+make install
+```
+
+`make install` installs all dependencies **and** configures the local git hook path (see [Pre-commit hook](#pre-commit-hook) below).
+
+### Pre-commit hook
+
+This project ships a pre-commit hook at `.githooks/pre-commit` that rebuilds the Sphinx documentation and stages any changed files under `docs/` before every commit. This keeps the GitHub Pages documentation in sync without requiring a separate CI step.
+
+`make install` activates it automatically. To manage it manually:
+
+```bash
+# Activate
+git config core.hooksPath .githooks
+
+# Deactivate (restore default git hooks directory)
+git config --unset core.hooksPath
 ```
 
 ### Documentation

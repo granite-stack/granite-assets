@@ -84,6 +84,7 @@ test-cov: ## Run tests with coverage report
 # Install project in development mode
 install:
 	uv sync
+	git config core.hooksPath .githooks
 
 # Install project with all optional dependencies
 install-all:

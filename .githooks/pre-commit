@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Regenerate Sphinx documentation before every commit.
+# docs/ is cleaned first to remove stale files from renamed/deleted pages.
+# .nojekyll is recreated automatically by sphinx.ext.githubpages.
+# Files under docs/ are staged automatically if they changed.
+set -euo pipefail
+
+echo "[pre-commit] Cleaning docs/ directory..."
+rm -rf docs/
+
+echo "[pre-commit] Building documentation..."
+uv run sphinx-build -q docs_source docs
+
+# Stage any docs changes so they are included in this commit.
+git add docs/
+
+echo "[pre-commit] Documentation up to date."
