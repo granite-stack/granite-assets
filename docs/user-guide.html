@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>User Guide &mdash; Granite Assets 0.1.6 documentation</title>
+  <title>User Guide &mdash; Granite Assets 0.1.7 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -14,7 +14,7 @@
     <link rel="canonical" href="/granite-assets/user-guide.html" />
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=6e0256f3"></script>
+      <script src="_static/documentation_options.js?v=ca7ad2ea"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -54,12 +54,14 @@
 <li class="toctree-l2"><a class="reference internal" href="#architecture-overview">Architecture Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#key-concepts">Key Concepts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#saving-assets">Saving Assets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#auto-generated-key-layout">Auto-generated Key Layout</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#reading-asset-metadata">Reading Asset Metadata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#copy-and-move">Copy and Move</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#deleting-assets">Deleting Assets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#fastapi-integration">FastAPI Integration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#local-nginx-backend-details">Local Nginx Backend Details</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#s3-backend-details">S3 Backend Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cloudfront-signed-urls-for-streaming">CloudFront Signed URLs for Streaming</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="presigned-urls.html">Upload and Download URLs</a></li>
@@ -127,10 +129,13 @@ such as FastAPI.</p>
 <h2>Key Concepts<a class="headerlink" href="#key-concepts" title="Link to this heading"></a></h2>
 <dl>
 <dt><strong>Asset key</strong></dt><dd><p>A forward-slash separated path that uniquely identifies an asset within the
-repository (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;invoices/2024/inv-001.pdf&quot;</span></code>).  Keys must <strong>not</strong> start
-with a leading slash.  The key is the stable identifier you store in your
-database — the physical location (filesystem path, S3 key with prefix) is
-an internal detail of the repository.</p>
+repository.  Keys must <strong>not</strong> start with a leading slash.  The key is the
+stable identifier you store in your database — the physical location
+(filesystem path, S3 key with prefix) is an internal detail of the
+repository.</p>
+<p><code class="docutils literal notranslate"><span class="pre">key</span></code> is <strong>optional</strong> in <code class="docutils literal notranslate"><span class="pre">AssetSaveRequest</span></code>.  When omitted, the
+repository auto-generates a collision-free key using a UUID folder
+structure (see <a class="reference internal" href="#auto-key-layout"><span class="std std-ref">Auto-generated Key Layout</span></a> below).</p>
 </dd>
 <dt><strong>AssetVisibility</strong></dt><dd><p><code class="docutils literal notranslate"><span class="pre">PUBLIC</span></code> — the asset is accessible via a stable, non-expiring URL.
 <code class="docutils literal notranslate"><span class="pre">PRIVATE</span></code> — the asset requires a time-limited signed URL.</p>
@@ -164,7 +169,7 @@ upload.  See <a class="reference internal" href="presigned-urls.html"><span clas
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetSaveRequest</span><span class="p">,</span> <span class="n">AssetVisibility</span>
 
-<span class="c1"># From an open file</span>
+<span class="c1"># From an open file — explicit key</span>
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;report.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
         <span class="n">key</span><span class="o">=</span><span class="s2">&quot;reports/q1-2024.pdf&quot;</span><span class="p">,</span>
@@ -175,13 +180,26 @@ upload.  See <a class="reference internal" href="presigned-urls.html"><span clas
         <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;uploader&quot;</span><span class="p">:</span> <span class="s2">&quot;user-123&quot;</span><span class="p">},</span>
     <span class="p">))</span>
 
-<span class="c1"># From bytes</span>
+<span class="c1"># Auto-generated key — omit ``key`` and supply ``filename``</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
-    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;thumbnails/user-42.jpg&quot;</span><span class="p">,</span>
     <span class="n">source</span><span class="o">=</span><span class="n">thumbnail_bytes</span><span class="p">,</span>
     <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+    <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span>
     <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
 <span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+<span class="c1"># e.g. &quot;3b105bc5-6056-4a52-b03b-7d953644c826/3b105bc5-6056-4a52-b03b-7d953644c826.jpg&quot;</span>
+
+<span class="c1"># Prefix-only key — pass a path without extension to place the file inside</span>
+<span class="c1"># a named folder; granite-assets appends the UUID subfolder automatically</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;private/3b105bc5-6056-4a52-b03b-7d953644c826&quot;</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+    <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/png&quot;</span><span class="p">,</span>
+    <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;photo.png&quot;</span><span class="p">,</span>
+<span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+<span class="c1"># &quot;private/3b105bc5-.../3b105bc5-....png&quot;</span>
 
 <span class="c1"># Prevent overwriting an existing asset</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
@@ -192,6 +210,33 @@ upload.  See <a class="reference internal" href="presigned-urls.html"><span clas
 <span class="p">))</span>
 </pre></div>
 </div>
+</section>
+<section id="auto-generated-key-layout">
+<span id="auto-key-layout"></span><h2>Auto-generated Key Layout<a class="headerlink" href="#auto-generated-key-layout" title="Link to this heading"></a></h2>
+<p>When <code class="docutils literal notranslate"><span class="pre">key</span></code> is omitted from <code class="docutils literal notranslate"><span class="pre">AssetSaveRequest</span></code>, both backends enforce a
+collision-free, privacy-safe storage layout:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">uuid</span><span class="p">}</span><span class="o">/</span><span class="p">{</span><span class="n">uuid</span><span class="p">}</span><span class="o">.</span><span class="p">{</span><span class="n">ext</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>The <em>same</em> UUID is used for the folder and the filename.  This means:</p>
+<ul class="simple">
+<li><p>The folder name is the stable identifier for the asset — you can sign a
+CloudFront wildcard resource for <code class="docutils literal notranslate"><span class="pre">{uuid}/*</span></code> to grant access to all
+representations of that asset (thumbnail, original, HLS segments …)
+with a single policy.</p></li>
+<li><p>Physical paths are never guessable or enumerable.</p></li>
+<li><p>No collision is possible regardless of original filename.</p></li>
+</ul>
+<p>Three key resolution rules are applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>:</p>
+<ol class="arabic simple">
+<li><p><strong>``key`` is ``None``</strong> → generate <code class="docutils literal notranslate"><span class="pre">{uuid}/{uuid}.ext</span></code> using a new UUID.</p></li>
+<li><p><strong>``key`` has no file extension</strong> → treat it as a folder prefix and
+append <code class="docutils literal notranslate"><span class="pre">/{last_segment}.ext</span></code>.  Useful when the caller pre-allocates a
+UUID and wants to delegate the path construction to the repository.</p></li>
+<li><p><strong>``key`` has a file extension</strong> → use it unchanged (backward-compatible).</p></li>
+</ol>
+<p>The extension is derived from <code class="docutils literal notranslate"><span class="pre">filename</span></code>; when <code class="docutils literal notranslate"><span class="pre">filename</span></code> is also absent,
+no extension is appended (<code class="docutils literal notranslate"><span class="pre">{uuid}/{uuid}</span></code>).</p>
 </section>
 <section id="reading-asset-metadata">
 <h2>Reading Asset Metadata<a class="headerlink" href="#reading-asset-metadata" title="Link to this heading"></a></h2>
@@ -315,10 +360,20 @@ and <a class="reference internal" href="infrastructure.html"><span class="doc">I
 </section>
 <section id="s3-backend-details">
 <h2>S3 Backend Details<a class="headerlink" href="#s3-backend-details" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p><strong>ACLs</strong> — the library sets <code class="docutils literal notranslate"><span class="pre">ACL='public-read'</span></code> for public objects when
-saving.  Ensure your bucket allows ACLs or manage access via bucket policy
-instead and set <code class="docutils literal notranslate"><span class="pre">public_base_url</span></code> to your CDN domain.</p></li>
+<ul>
+<li><p><strong>ACLs</strong> — by default the library sets <code class="docutils literal notranslate"><span class="pre">ACL='public-read'</span></code> for public
+objects when saving.  If your bucket has <em>Object Ownership</em> set to
+<code class="docutils literal notranslate"><span class="pre">BucketOwnerEnforced</span></code> (ACLs disabled), set <code class="docutils literal notranslate"><span class="pre">use_object_acl=False</span></code> on
+<code class="docutils literal notranslate"><span class="pre">S3AssetRepositoryConfig</span></code>.  Visibility is then controlled entirely via
+bucket policy or CloudFront OAC.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-bucket&quot;</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
+    <span class="n">use_object_acl</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>   <span class="c1"># required when ACLs are disabled on the bucket</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
 <li><p><strong>Custom endpoint</strong> — set <code class="docutils literal notranslate"><span class="pre">endpoint_url</span></code> for MinIO, LocalStack, or any
 S3-compatible store.</p></li>
 <li><p><strong>Credentials</strong> — pass <code class="docutils literal notranslate"><span class="pre">access_key_id</span></code> / <code class="docutils literal notranslate"><span class="pre">secret_access_key</span></code> directly or
@@ -328,6 +383,27 @@ variables, instance roles, <code class="docutils literal notranslate"><span clas
 to S3 and stripped when reading back.  Application code always works with the
 unprefixed logical key.</p></li>
 </ul>
+</section>
+<section id="cloudfront-signed-urls-for-streaming">
+<h2>CloudFront Signed URLs for Streaming<a class="headerlink" href="#cloudfront-signed-urls-for-streaming" title="Link to this heading"></a></h2>
+<p>For HLS/DASH streaming or any multi-file asset (e.g. thumbnails alongside an
+original), use <code class="docutils literal notranslate"><span class="pre">build_folder_signed_url()</span></code> to issue a single custom-policy
+signed URL that grants access to every file under the asset’s UUID folder:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># The asset was saved at: private/3b105bc5-.../3b105bc5-....mp4</span>
+<span class="c1"># HLS segments live alongside it:  3b105bc5-....m3u8, seg-0.ts, seg-1.ts …</span>
+
+<span class="n">stream_url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_folder_signed_url</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;private/3b105bc5-6056-4a52-b03b-7d953644c826/3b105bc5-....mp4&quot;</span><span class="p">,</span>
+    <span class="n">entry_filename</span><span class="o">=</span><span class="s2">&quot;master.m3u8&quot;</span><span class="p">,</span>
+    <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># stream_url.url points to:  https://cdn.example.com/private/3b105bc5-.../master.m3u8</span>
+<span class="c1"># The CloudFront policy resource covers:  https://cdn.example.com/private/3b105bc5-.../*</span>
+<span class="c1"># so all segment files are accessible with the same signed credentials.</span>
+</pre></div>
+</div>
+<p>This requires <code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> and <code class="docutils literal notranslate"><span class="pre">cf_private_key</span></code> to be set in
+<code class="docutils literal notranslate"><span class="pre">S3AssetRepositoryConfig</span></code>.</p>
 </section>
 </section>
 

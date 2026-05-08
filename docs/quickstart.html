@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quick Start &mdash; Granite Assets 0.1.6 documentation</title>
+  <title>Quick Start &mdash; Granite Assets 0.1.7 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
@@ -14,7 +14,7 @@
     <link rel="canonical" href="/granite-assets/quickstart.html" />
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=6e0256f3"></script>
+      <script src="_static/documentation_options.js?v=ca7ad2ea"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -117,7 +117,7 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.</p>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
-<span class="c1"># 2. Save an asset.</span>
+<span class="c1"># 2. Save an asset — explicit key.</span>
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
         <span class="n">key</span><span class="o">=</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">,</span>
@@ -128,6 +128,17 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.</p>
     <span class="p">))</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>            <span class="c1"># avatars/user-42.jpg</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">content_length</span><span class="p">)</span> <span class="c1"># bytes written</span>
+
+<span class="c1"># Auto-generated key — omit ``key``; granite-assets creates</span>
+<span class="c1"># ``{uuid}/{uuid}.jpg`` automatically.</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span>
+    <span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># e.g. &quot;a1b2c3d4-.../&lt;same-uuid&gt;.jpg&quot;</span>
 
 <span class="c1"># 3. Build a public URL.</span>
 <span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
@@ -170,7 +181,7 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.</p>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>   <span class="c1"># returns S3AssetRepository</span>
 
-<span class="c1"># Save a public asset.</span>
+<span class="c1"># Save a public asset — explicit key.</span>
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;banner.png&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
         <span class="n">key</span><span class="o">=</span><span class="s2">&quot;banners/homepage.png&quot;</span><span class="p">,</span>
@@ -178,6 +189,17 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.</p>
         <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/png&quot;</span><span class="p">,</span>
         <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
     <span class="p">))</span>
+
+<span class="c1"># Save with auto-generated key (recommended for user uploads).</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;invoice.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/pdf&quot;</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;invoice.pdf&quot;</span><span class="p">,</span>
+    <span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+<span class="c1"># e.g. &quot;3b105bc5-6056-4a52-b03b-7d953644c826/3b105bc5-....pdf&quot;</span>
 
 <span class="c1"># Permanent public URL (via CDN).</span>
 <span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;banners/homepage.png&quot;</span><span class="p">)</span>

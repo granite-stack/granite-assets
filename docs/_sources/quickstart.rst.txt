@@ -28,7 +28,7 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.
    )
    repo = LocalNginxAssetRepository(config)
 
-   # 2. Save an asset.
+   # 2. Save an asset — explicit key.
    with open("photo.jpg", "rb") as f:
        result = repo.save(AssetSaveRequest(
            key="avatars/user-42.jpg",
@@ -39,6 +39,17 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.
        ))
    print(result.key)            # avatars/user-42.jpg
    print(result.content_length) # bytes written
+
+   # Auto-generated key — omit ``key``; granite-assets creates
+   # ``{uuid}/{uuid}.jpg`` automatically.
+   with open("photo.jpg", "rb") as f:
+       result = repo.save(AssetSaveRequest(
+           source=f,
+           content_type="image/jpeg",
+           visibility=AssetVisibility.PUBLIC,
+           filename="photo.jpg",
+       ))
+   print(result.key)  # e.g. "a1b2c3d4-.../<same-uuid>.jpg"
 
    # 3. Build a public URL.
    url = repo.build_public_url("avatars/user-42.jpg")
@@ -83,7 +94,7 @@ Replace the configuration object; the API is identical.
    )
    repo = build_asset_repository(config)   # returns S3AssetRepository
 
-   # Save a public asset.
+   # Save a public asset — explicit key.
    with open("banner.png", "rb") as f:
        result = repo.save(AssetSaveRequest(
            key="banners/homepage.png",
@@ -91,6 +102,17 @@ Replace the configuration object; the API is identical.
            content_type="image/png",
            visibility=AssetVisibility.PUBLIC,
        ))
+
+   # Save with auto-generated key (recommended for user uploads).
+   with open("invoice.pdf", "rb") as f:
+       result = repo.save(AssetSaveRequest(
+           source=f,
+           content_type="application/pdf",
+           visibility=AssetVisibility.PRIVATE,
+           filename="invoice.pdf",
+       ))
+   print(result.key)
+   # e.g. "3b105bc5-6056-4a52-b03b-7d953644c826/3b105bc5-....pdf"
 
    # Permanent public URL (via CDN).
    url = repo.build_public_url("banners/homepage.png")
