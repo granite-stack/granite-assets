@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>granite_assets.repositories.local_nginx &mdash; Granite Assets 0.1.5 documentation</title>
+  <title>granite_assets.repositories.local_nginx &mdash; Granite Assets 0.1.6 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -13,7 +13,7 @@
     <link rel="canonical" href="/granite-assets/_modules/granite_assets/repositories/local_nginx.html" />
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=59fadc99"></script>
+      <script src="../../../_static/documentation_options.js?v=6e0256f3"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -132,9 +132,11 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hmac</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_uuid_mod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -161,6 +163,27 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Asset key must not start with &#39;/&#39;: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_resolve_asset_key</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the final storage key.</span>
+
+<span class="sd">    Three cases:</span>
+<span class="sd">    * *key* is ``None``  →  auto-generate ``&lt;uuid&gt;/&lt;uuid&gt;.&lt;ext&gt;``.</span>
+<span class="sd">    * *key* has no file extension  →  treat it as a folder prefix and append</span>
+<span class="sd">      ``/&lt;last_segment&gt;&lt;ext&gt;`` so callers can pass ``visibility/uuid`` and get</span>
+<span class="sd">      back ``visibility/uuid/uuid.ext``.</span>
+<span class="sd">    * *key* has a file extension  →  use it unchanged (backward-compatible).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">asset_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">_uuid_mod</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">asset_id</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">asset_id</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">key_ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">key_ext</span><span class="p">:</span>
+        <span class="n">last_segment</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">last_segment</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">return</span> <span class="n">key</span>
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository">
@@ -359,9 +382,10 @@
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetError: If the file already exists and *overwrite* is False.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">_resolve_asset_key</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">overwrite</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">overwrite</span>
-        <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">)</span>
+        <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
@@ -384,11 +408,11 @@
                     <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
                     <span class="n">total</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to write asset </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to write asset </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 
         <span class="n">checksum</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;md5:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_md5_of_file</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="k">return</span> <span class="n">AssetSaveResult</span><span class="p">(</span>
-            <span class="n">key</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
             <span class="n">backend_ref</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">dest</span><span class="p">),</span>
             <span class="n">content_length</span><span class="o">=</span><span class="n">total</span><span class="p">,</span>
             <span class="n">checksum</span><span class="o">=</span><span class="n">checksum</span><span class="p">,</span>

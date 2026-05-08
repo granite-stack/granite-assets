@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>granite_assets.models &mdash; Granite Assets 0.1.5 documentation</title>
+  <title>granite_assets.models &mdash; Granite Assets 0.1.6 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
 
@@ -13,7 +13,7 @@
     <link rel="canonical" href="/granite-assets/_modules/granite_assets/models.html" />
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=59fadc99"></script>
+      <script src="../../_static/documentation_options.js?v=6e0256f3"></script>
       <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -113,13 +113,19 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;All the information needed to persist a new asset.</span>
 
 <span class="sd">    Attributes:</span>
-<span class="sd">        key:          Logical key that uniquely identifies the asset within the</span>
-<span class="sd">                      repository (e.g. ``&quot;invoices/2024/inv-001.pdf&quot;``).  It must</span>
-<span class="sd">                      not contain a leading slash.</span>
 <span class="sd">        source:       Readable binary stream with the asset content.</span>
 <span class="sd">        content_type: MIME type (e.g. ``&quot;application/pdf&quot;``).</span>
+<span class="sd">        key:          Logical key that uniquely identifies the asset within the</span>
+<span class="sd">                      repository (e.g. ``&quot;invoices/2024/inv-001.pdf&quot;``).  It must</span>
+<span class="sd">                      not contain a leading slash.  When *None* (default) the</span>
+<span class="sd">                      repository auto-generates a namespaced key of the form</span>
+<span class="sd">                      ``&lt;uuid&gt;/&lt;uuid&gt;.&lt;ext&gt;``, where the extension is derived</span>
+<span class="sd">                      from *filename*.  The resolved key is always returned in</span>
+<span class="sd">                      :class:`AssetSaveResult`.</span>
 <span class="sd">        visibility:   Whether the asset will be publicly accessible or private.</span>
 <span class="sd">        filename:     Original human-readable filename, stored as metadata.</span>
+<span class="sd">                      Required when *key* is omitted (used to derive the file</span>
+<span class="sd">                      extension for the auto-generated key).</span>
 <span class="sd">        content_length: Byte size of the asset when known; used to set</span>
 <span class="sd">                      ``Content-Length`` headers on upload.</span>
 <span class="sd">        checksum:     Optional integrity hash (e.g. ``&quot;md5:abc123&quot;``).</span>
@@ -130,9 +136,9 @@
 <span class="sd">                      per-request override even when the global config differs.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">BinaryIO</span> <span class="o">|</span> <span class="nb">bytes</span>
     <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span> <span class="o">=</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span>
     <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">content_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -466,6 +472,12 @@
 <span class="sd">      CloudFront URL.  The caller must first obtain cookies via</span>
 <span class="sd">      :meth:`build_signed_cookies` and set them on the browser.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">use_object_acl</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;When ``True`` (default), ``PutObject`` requests include an S3 object ACL</span>
+<span class="sd">    (``public-read`` for public assets, none for private).  Set to ``False``</span>
+<span class="sd">    when the bucket has *Object Ownership* = ``BucketOwnerEnforced`` and ACLs</span>
+<span class="sd">    are disabled — visibility is then expressed solely via key prefix and bucket</span>
+<span class="sd">    policy / CloudFront OAC rather than per-object ACLs.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="S3AssetRepositoryConfig.presign_ttl">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.presign_ttl">[docs]</a>

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>granite_assets.repositories &mdash; Granite Assets 0.1.5 documentation</title>
+  <title>granite_assets.repositories &mdash; Granite Assets 0.1.6 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
@@ -14,7 +14,7 @@
     <link rel="canonical" href="/granite-assets/api/repositories.html" />
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=59fadc99"></script>
+      <script src="../_static/documentation_options.js?v=6e0256f3"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
@@ -500,6 +500,67 @@ Defaults to the directory of <em>key</em> + <code class="docutils literal notran
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetConfigurationError" title="granite_assets.exceptions.AssetConfigurationError"><strong>AssetConfigurationError</strong></a> – if CloudFront signing is not configured.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.build_folder_signed_url">
+<span class="sig-name descname"><span class="pre">build_folder_signed_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">entry_filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetAccessUrl" title="granite_assets.models.AssetAccessUrl"><span class="pre">AssetAccessUrl</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.build_folder_signed_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.build_folder_signed_url" title="Link to this definition"></a></dt>
+<dd><p>Generate a CloudFront URL with <strong>wildcard custom-policy</strong> for the folder
+of <em>key</em>, pointing to <em>entry_filename</em> within that folder.</p>
+<p>This is the recommended method for composite assets such as HLS/DASH
+video streams.  The source asset (e.g. a transcoded <code class="docutils literal notranslate"><span class="pre">.mp4</span></code>) and the
+player entry point (e.g. <code class="docutils literal notranslate"><span class="pre">master.m3u8</span></code>) live in the same S3 folder.
+A single set of credentials authorises the manifest <strong>and</strong> all segment
+files that the player fetches from relative paths.</p>
+<p>Usage example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># key layout in S3:</span>
+<span class="c1">#   assets/&lt;uuid&gt;/&lt;uuid&gt;.mp4       ← original source</span>
+<span class="c1">#   assets/&lt;uuid&gt;/master.m3u8      ← HLS manifest</span>
+<span class="c1">#   assets/&lt;uuid&gt;/1080p/index.m3u8</span>
+<span class="c1">#   assets/&lt;uuid&gt;/1080p/seg000.ts  … seg009.ts</span>
+
+<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_folder_signed_url</span><span class="p">(</span>
+    <span class="s2">&quot;assets/&lt;uuid&gt;/&lt;uuid&gt;.mp4&quot;</span><span class="p">,</span>
+    <span class="n">entry_filename</span><span class="o">=</span><span class="s2">&quot;master.m3u8&quot;</span><span class="p">,</span>
+    <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">7200</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Returns:</span>
+<span class="c1">#   https://&lt;cf&gt;/assets/&lt;uuid&gt;/master.m3u8</span>
+<span class="c1">#       ?Policy=&lt;wildcard over assets/&lt;uuid&gt;/*&gt;</span>
+<span class="c1">#       &amp;Signature=...&amp;Key-Pair-Id=...</span>
+</pre></div>
+</div>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">url.url</span></code> directly to HLS.js as the source — the query-string
+credentials are inherited by all relative segment requests.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – Logical key of <strong>any</strong> file that belongs to the
+target folder.  Used solely to derive the folder
+path; the URL will <strong>not</strong> point to this file.
+Example: <code class="docutils literal notranslate"><span class="pre">&quot;assets/&lt;uuid&gt;/&lt;uuid&gt;.mp4&quot;</span></code>.</p></li>
+<li><p><strong>entry_filename</strong> – Filename of the player entry point within the same
+folder.  Example: <code class="docutils literal notranslate"><span class="pre">&quot;master.m3u8&quot;</span></code>.</p></li>
+<li><p><strong>ttl_seconds</strong> – Lifetime of the signing credentials in seconds
+(default: configured <code class="docutils literal notranslate"><span class="pre">presign_ttl_seconds</span></code>).
+A new URL with a new expiry is generated on every
+call; credentials are not cached.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">AssetAccessUrl</span></code> whose <code class="docutils literal notranslate"><span class="pre">url</span></code> is
+<code class="docutils literal notranslate"><span class="pre">https://&lt;cf&gt;/&lt;folder&gt;/&lt;entry_filename&gt;?Policy=…&amp;Signature=…&amp;Key-Pair-Id=…</span></code>
+and whose <code class="docutils literal notranslate"><span class="pre">expires_at</span></code> reflects the policy expiry.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetConfigurationError" title="granite_assets.exceptions.AssetConfigurationError"><strong>AssetConfigurationError</strong></a> – CloudFront signing is not configured
+    (<code class="docutils literal notranslate"><span class="pre">cf_key_id</span></code> or <code class="docutils literal notranslate"><span class="pre">cf_private_key</span></code> not set).</p></li>
+<li><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetError" title="granite_assets.exceptions.AssetError"><strong>AssetError</strong></a> – <em>key</em> has no directory component (it is a
+    root-level key with no <code class="docutils literal notranslate"><span class="pre">/</span></code> separator).</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
