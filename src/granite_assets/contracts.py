@@ -150,7 +150,9 @@ class IAssetRepository(Protocol):
         """
         ...
 
-    def build_download_url(self, key: str, ttl_seconds: int | None = None) -> AssetAccessUrl:
+    def build_download_url(
+        self, key: str, ttl_seconds: int | None = None
+    ) -> AssetAccessUrl:
         """Return a time-limited URL suitable for downloading the asset.
 
         For public assets this may return the same permanent URL.  For private
@@ -195,7 +197,9 @@ class IAssetRepository(Protocol):
         """
         ...
 
-    def resolve_access(self, key: str, ttl_seconds: int | None = None) -> AssetAccessUrl:
+    def resolve_access(
+        self, key: str, ttl_seconds: int | None = None
+    ) -> AssetAccessUrl:
         """Convenience helper that returns the best available URL for the asset.
 
         For public assets returns the permanent public URL; for private assets

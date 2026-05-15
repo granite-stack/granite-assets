@@ -208,7 +208,11 @@ class LocalNginxAssetRepository:
         Raises:
             AssetAccessNotSupportedError: If ``secure_link_secret`` is not set.
         """
-        ttl = ttl_seconds if ttl_seconds is not None else self._cfg.secure_link_ttl_seconds
+        ttl = (
+            ttl_seconds
+            if ttl_seconds is not None
+            else self._cfg.secure_link_ttl_seconds
+        )
         expires = int(time.time()) + ttl
         prefix = self._cfg.private_prefix
         uri_path = self._uri_path(prefix, key)
@@ -290,7 +294,9 @@ class LocalNginxAssetRepository:
         """
         key = _resolve_asset_key(request.key, request.filename)
         _assert_no_leading_slash(key)
-        overwrite = request.overwrite if request.overwrite is not None else self._cfg.overwrite
+        overwrite = (
+            request.overwrite if request.overwrite is not None else self._cfg.overwrite
+        )
         dest = self._full_path(key, request.visibility)
 
         if dest.exists() and not overwrite:
@@ -384,9 +390,7 @@ class LocalNginxAssetRepository:
     def exists(self, key: str) -> bool:
         """Return True if the key exists under either visibility prefix."""
         _assert_no_leading_slash(key)
-        return any(
-            self._full_path(key, v).exists() for v in AssetVisibility
-        )
+        return any(self._full_path(key, v).exists() for v in AssetVisibility)
 
     def get_descriptor(self, key: str) -> AssetDescriptor:
         """Return file metadata without reading the file body."""
@@ -421,7 +425,9 @@ class LocalNginxAssetRepository:
         url = self._public_url(self._cfg.public_prefix, key)
         return AssetAccessUrl(url=url, expires_at=None)
 
-    def build_download_url(self, key: str, ttl_seconds: int | None = None) -> AssetAccessUrl:
+    def build_download_url(
+        self, key: str, ttl_seconds: int | None = None
+    ) -> AssetAccessUrl:
         """Return a download URL for the asset.
 
         * **Public assets** → permanent URL (no token required).
@@ -455,7 +461,8 @@ class LocalNginxAssetRepository:
                 return self._build_signed_private_url(key, ttl_seconds)
             raise AssetAccessNotSupportedError(
                 _BACKEND_NAME,
-                "build_download_url (private asset — set secure_link_secret to enable signed URLs)",
+                "build_download_url (private asset"
+                " — set secure_link_secret to enable signed URLs)",
             )
         raise AssetAccessNotSupportedError(
             _BACKEND_NAME, "build_download_url (asset not found)"
@@ -511,18 +518,22 @@ class LocalNginxAssetRepository:
         if not self._cfg.tusd_url:
             raise AssetAccessNotSupportedError(
                 _BACKEND_NAME,
-                "build_upload_url (tusd_url not configured — set tusd_url to enable tus uploads)",
+                "build_upload_url (tusd_url not configured"
+                " — set tusd_url to enable tus uploads)",
             )
         if not self._cfg.upload_secret:
             raise AssetAccessNotSupportedError(
                 _BACKEND_NAME,
-                "build_upload_url (upload_secret not configured — set upload_secret to sign upload tokens)",
+                "build_upload_url (upload_secret not configured"
+                " — set upload_secret to sign upload tokens)",
             )
 
         ttl = ttl_seconds if ttl_seconds is not None else self._cfg.upload_ttl_seconds
         expires = int(time.time()) + ttl
         token = self._build_upload_token(key, visibility, content_type, expires)
-        metadata = self._tus_metadata_header(key, visibility, content_type, token, expires)
+        metadata = self._tus_metadata_header(
+            key, visibility, content_type, token, expires
+        )
         url = self._cfg.tusd_url.rstrip("/") + "/files/"
 
         return UploadUrlResult(
@@ -537,7 +548,9 @@ class LocalNginxAssetRepository:
             key=key,
         )
 
-    def resolve_access(self, key: str, ttl_seconds: int | None = None) -> AssetAccessUrl:
+    def resolve_access(
+        self, key: str, ttl_seconds: int | None = None
+    ) -> AssetAccessUrl:
         """Return the best available URL for the asset.
 
         * **Public assets** → permanent public URL.
@@ -567,10 +580,10 @@ class LocalNginxAssetRepository:
                 return self._build_signed_private_url(key, ttl_seconds)
             raise AssetAccessNotSupportedError(
                 _BACKEND_NAME,
-                "resolve_access (private asset — set secure_link_secret to enable signed URLs)",
+                "resolve_access (private asset"
+                " — set secure_link_secret to enable signed URLs)",
             )
         raise AssetNotFoundError(key)
-
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -596,4 +609,4 @@ class LocalNginxAssetRepository:
 
 # Verify structural compatibility at import time (cheap, dev-friendly)
 assert isinstance(LocalNginxAssetRepository, type)
-_: IAssetRepository = LocalNginxAssetRepository.__new__(LocalNginxAssetRepository)  # type: ignore[assignment]
+_: IAssetRepository = LocalNginxAssetRepository.__new__(LocalNginxAssetRepository)

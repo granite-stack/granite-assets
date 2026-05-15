@@ -7,7 +7,7 @@ so IDEs and type checkers benefit without needing ``cast``.
 
 from __future__ import annotations
 
-from typing import Union, overload
+from typing import TYPE_CHECKING, overload
 
 from granite_assets.models import (
     LocalNginxAssetRepositoryConfig,
@@ -15,7 +15,10 @@ from granite_assets.models import (
 )
 from granite_assets.repositories.local_nginx import LocalNginxAssetRepository
 
-AnyConfig = Union[LocalNginxAssetRepositoryConfig, S3AssetRepositoryConfig]
+if TYPE_CHECKING:
+    from granite_assets.repositories.s3 import S3AssetRepository
+
+AnyConfig = LocalNginxAssetRepositoryConfig | S3AssetRepositoryConfig
 
 
 @overload
@@ -25,7 +28,7 @@ def build_asset_repository(
 
 
 @overload
-def build_asset_repository(config: S3AssetRepositoryConfig) -> "S3AssetRepository": ...  # type: ignore[misc]  # noqa: F821
+def build_asset_repository(config: S3AssetRepositoryConfig) -> S3AssetRepository: ...
 
 
 def build_asset_repository(config: AnyConfig) -> object:
@@ -57,6 +60,7 @@ def build_asset_repository(config: AnyConfig) -> object:
 
     if isinstance(config, S3AssetRepositoryConfig):
         from granite_assets.repositories.s3 import S3AssetRepository  # noqa: PLC0415
+
         return S3AssetRepository(config)
 
     raise TypeError(

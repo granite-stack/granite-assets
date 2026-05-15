@@ -188,8 +188,6 @@ class CfSignedCookies:
         }
 
 
-
-
 @dataclass(slots=True)
 class LocalNginxAssetRepositoryConfig:
     """Configuration for :class:`LocalNginxAssetRepository`.

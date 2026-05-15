@@ -124,7 +124,9 @@ def repo(nginx_container: str, assets_dir: Path) -> LocalNginxAssetRepository:
 # ---------------------------------------------------------------------------
 
 
-def _save(repo: LocalNginxAssetRepository, key: str, visibility: AssetVisibility) -> None:
+def _save(
+    repo: LocalNginxAssetRepository, key: str, visibility: AssetVisibility
+) -> None:
     repo.save(
         AssetSaveRequest(
             key=key,
@@ -315,7 +317,8 @@ def test_resolve_access_public(
 
 
 def test_private_url_without_secret_raises(tmp_path: Path) -> None:
-    """When secure_link_secret is None, URL methods raise AssetAccessNotSupportedError."""
+    """When secure_link_secret is None, URL methods raise
+    AssetAccessNotSupportedError."""
     cfg = LocalNginxAssetRepositoryConfig(
         storage_path=str(tmp_path),
         base_url="http://localhost/assets",

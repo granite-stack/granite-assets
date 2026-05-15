@@ -111,6 +111,58 @@ def test_save_public_asset(
 
 
 @mock_aws
+def test_save_result_content_length_from_request(
+    aws_credentials: None, config: S3AssetRepositoryConfig
+) -> None:
+    """When content_length is supplied in the request it must be reflected
+    in the result."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(config)
+
+    payload = b"hello world"
+    req = AssetSaveRequest(
+        key="files/hello.txt",
+        source=payload,
+        content_type="text/plain",
+        visibility=AssetVisibility.PRIVATE,
+        content_length=len(payload),
+    )
+    result = repo.save(req)
+
+    assert result.content_length == len(payload)
+
+
+@mock_aws
+def test_save_result_content_length_from_head_when_not_in_request(
+    aws_credentials: None, config: S3AssetRepositoryConfig
+) -> None:
+    """When content_length is omitted from the request, the result is obtained
+    via head_object."""
+    client = boto3.client("s3", region_name=REGION)
+    client.create_bucket(
+        Bucket=BUCKET,
+        CreateBucketConfiguration={"LocationConstraint": REGION},
+    )
+    repo = S3AssetRepository(config)
+
+    payload = b"hello world"
+    req = AssetSaveRequest(
+        key="files/hello-no-hint.txt",
+        source=payload,
+        content_type="text/plain",
+        visibility=AssetVisibility.PRIVATE,
+        # content_length intentionally omitted
+    )
+    result = repo.save(req)
+
+    assert result.content_length == len(payload)
+
+
+@mock_aws
 def test_exists_false_for_missing(
     aws_credentials: None, config: S3AssetRepositoryConfig
 ) -> None:
@@ -137,9 +189,7 @@ def test_delete(aws_credentials: None, config: S3AssetRepositoryConfig) -> None:
     )
     repo = S3AssetRepository(config)
 
-    repo.save(
-        AssetSaveRequest(key="bye.txt", source=b"bye", content_type="text/plain")
-    )
+    repo.save(AssetSaveRequest(key="bye.txt", source=b"bye", content_type="text/plain"))
     assert repo.exists("bye.txt")
 
     repo.delete("bye.txt")
@@ -175,7 +225,9 @@ def test_copy(aws_credentials: None, config: S3AssetRepositoryConfig) -> None:
     )
     repo = S3AssetRepository(config)
 
-    repo.save(AssetSaveRequest(key="src.txt", source=b"hello", content_type="text/plain"))
+    repo.save(
+        AssetSaveRequest(key="src.txt", source=b"hello", content_type="text/plain")
+    )
     repo.copy("src.txt", "dst.txt")
 
     assert repo.exists("src.txt")
@@ -191,7 +243,9 @@ def test_move(aws_credentials: None, config: S3AssetRepositoryConfig) -> None:
     )
     repo = S3AssetRepository(config)
 
-    repo.save(AssetSaveRequest(key="mv-src.txt", source=b"data", content_type="text/plain"))
+    repo.save(
+        AssetSaveRequest(key="mv-src.txt", source=b"data", content_type="text/plain")
+    )
     repo.move("mv-src.txt", "mv-dst.txt")
 
     assert not repo.exists("mv-src.txt")
@@ -248,7 +302,9 @@ def test_build_download_url(
     repo = S3AssetRepository(config)
 
     repo.save(
-        AssetSaveRequest(key="private.pdf", source=b"secret", content_type="application/pdf")
+        AssetSaveRequest(
+            key="private.pdf", source=b"secret", content_type="application/pdf"
+        )
     )
     access = repo.build_download_url("private.pdf", ttl_seconds=900)
     assert access.url
@@ -291,7 +347,9 @@ def test_key_prefix(aws_credentials: None) -> None:
     )
     repo = S3AssetRepository(cfg)
 
-    repo.save(AssetSaveRequest(key="file.txt", source=b"data", content_type="text/plain"))
+    repo.save(
+        AssetSaveRequest(key="file.txt", source=b"data", content_type="text/plain")
+    )
     assert repo.exists("file.txt")
 
     # Ensure the actual S3 key has the prefix
@@ -393,7 +451,9 @@ def test_save_without_key_asset_is_retrievable(
     repo = S3AssetRepository(config)
 
     result = repo.save(
-        AssetSaveRequest(source=b"hello", content_type="text/plain", filename="note.txt")
+        AssetSaveRequest(
+            source=b"hello", content_type="text/plain", filename="note.txt"
+        )
     )
 
     assert repo.exists(result.key)
@@ -417,7 +477,9 @@ def test_save_without_key_no_extension(
 
     parts = result.key.split("/")
     assert len(parts) == 2
-    assert parts[0] == parts[1], "Folder and filename UUIDs must match when no extension"
+    assert parts[0] == parts[1], (
+        "Folder and filename UUIDs must match when no extension"
+    )
 
 
 @mock_aws
@@ -471,7 +533,8 @@ def test_build_path_signed_url_contains_policy_param(
 def test_build_path_signed_url_wildcard_resource_derived(
     aws_credentials: None, cf_url_config: S3AssetRepositoryConfig
 ) -> None:
-    """When no path_pattern is given, resource in policy covers the directory with a wildcard."""
+    """When no path_pattern is given, resource in policy covers the directory
+    with a wildcard."""
     import base64
     import json
 
@@ -488,7 +551,9 @@ def test_build_path_signed_url_wildcard_resource_derived(
     params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
     policy_b64 = params["Policy"]
     # Reverse CloudFront base64 encoding
-    policy_b64_standard = policy_b64.replace("-", "+").replace("_", "=").replace("~", "/")
+    policy_b64_standard = (
+        policy_b64.replace("-", "+").replace("_", "=").replace("~", "/")
+    )
     policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
 
     resource = policy["Statement"][0]["Resource"]
@@ -516,7 +581,9 @@ def test_build_path_signed_url_explicit_pattern(
         path_pattern="private/videos/abc123/*",
     )
     params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
-    policy_b64_standard = params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    policy_b64_standard = (
+        params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    )
     policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
 
     resource = policy["Statement"][0]["Resource"]
@@ -579,7 +646,8 @@ def test_build_signed_cookies_as_cookie_header_values(
 def test_build_download_url_cookie_mode_returns_plain_cf_url(
     aws_credentials: None, cf_cookie_config: S3AssetRepositoryConfig
 ) -> None:
-    """In COOKIE mode, build_download_url returns a plain CF URL (no signature params)."""
+    """In COOKIE mode, build_download_url returns a plain CF URL (no signature
+    params)."""
     client = boto3.client("s3", region_name=REGION)
     client.create_bucket(
         Bucket=BUCKET,
@@ -587,7 +655,9 @@ def test_build_download_url_cookie_mode_returns_plain_cf_url(
     )
     repo = S3AssetRepository(cf_cookie_config)
     repo.save(
-        AssetSaveRequest(key="private/video.mp4", source=b"data", content_type="video/mp4")
+        AssetSaveRequest(
+            key="private/video.mp4", source=b"data", content_type="video/mp4"
+        )
     )
 
     result = repo.build_download_url("private/video.mp4")
@@ -612,7 +682,9 @@ def test_build_download_url_url_mode_returns_signed_url(
     )
     repo = S3AssetRepository(cf_url_config)
     repo.save(
-        AssetSaveRequest(key="private/doc.pdf", source=b"data", content_type="application/pdf")
+        AssetSaveRequest(
+            key="private/doc.pdf", source=b"data", content_type="application/pdf"
+        )
     )
 
     result = repo.build_download_url("private/doc.pdf")
@@ -670,13 +742,17 @@ def test_build_folder_signed_url_resource_is_wildcard(
     result = repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
 
     params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
-    policy_b64_standard = params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    policy_b64_standard = (
+        params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    )
     policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
 
     resource = policy["Statement"][0]["Resource"]
     expected_folder = f"assets/{_ASSET_UUID}"
     assert resource.endswith("/*"), f"Resource should end with /*, got {resource!r}"
-    assert expected_folder in resource, f"Resource should contain folder, got {resource!r}"
+    assert expected_folder in resource, (
+        f"Resource should contain folder, got {resource!r}"
+    )
     # Must NOT reference the specific .mp4 file
     assert f"{_ASSET_UUID}.mp4" not in resource
 
@@ -732,7 +808,9 @@ def test_build_folder_signed_url_with_key_prefix(
 
     # The resource pattern in the policy should also include the key_prefix
     params = dict(part.split("=", 1) for part in result.url.split("?", 1)[1].split("&"))
-    policy_b64_standard = params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    policy_b64_standard = (
+        params["Policy"].replace("-", "+").replace("_", "=").replace("~", "/")
+    )
     policy = json.loads(base64.b64decode(policy_b64_standard + "=="))
     resource = policy["Statement"][0]["Resource"]
     assert "prod/" in resource
@@ -772,5 +850,3 @@ def test_build_folder_signed_url_requires_cf_config(
 
     with pytest.raises(AssetConfigurationError):
         repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
-
-

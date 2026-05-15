@@ -54,6 +54,7 @@
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../implementing-repository.html">Implementing a Custom Repository</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../migrations.html">Database Migrations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -300,7 +301,11 @@
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetAccessNotSupportedError: If ``secure_link_secret`` is not set.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">ttl</span> <span class="o">=</span> <span class="n">ttl_seconds</span> <span class="k">if</span> <span class="n">ttl_seconds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secure_link_ttl_seconds</span>
+        <span class="n">ttl</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">ttl_seconds</span>
+            <span class="k">if</span> <span class="n">ttl_seconds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secure_link_ttl_seconds</span>
+        <span class="p">)</span>
         <span class="n">expires</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">ttl</span>
         <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">private_prefix</span>
         <span class="n">uri_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri_path</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
@@ -384,7 +389,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">key</span> <span class="o">=</span> <span class="n">_resolve_asset_key</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-        <span class="n">overwrite</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">overwrite</span>
+        <span class="n">overwrite</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">overwrite</span>
+        <span class="p">)</span>
         <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
@@ -490,9 +497,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the key exists under either visibility prefix.&quot;&quot;&quot;</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">AssetVisibility</span>
-        <span class="p">)</span></div>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">AssetVisibility</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.get_descriptor">
@@ -536,7 +541,9 @@
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.build_download_url">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.build_download_url">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a download URL for the asset.</span>
 
 <span class="sd">        * **Public assets** → permanent URL (no token required).</span>
@@ -570,7 +577,8 @@
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_signed_private_url</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
                 <span class="n">_BACKEND_NAME</span><span class="p">,</span>
-                <span class="s2">&quot;build_download_url (private asset — set secure_link_secret to enable signed URLs)&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;build_download_url (private asset&quot;</span>
+                <span class="s2">&quot; — set secure_link_secret to enable signed URLs)&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
             <span class="n">_BACKEND_NAME</span><span class="p">,</span> <span class="s2">&quot;build_download_url (asset not found)&quot;</span>
@@ -629,18 +637,22 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">tusd_url</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
                 <span class="n">_BACKEND_NAME</span><span class="p">,</span>
-                <span class="s2">&quot;build_upload_url (tusd_url not configured — set tusd_url to enable tus uploads)&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;build_upload_url (tusd_url not configured&quot;</span>
+                <span class="s2">&quot; — set tusd_url to enable tus uploads)&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_secret</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
                 <span class="n">_BACKEND_NAME</span><span class="p">,</span>
-                <span class="s2">&quot;build_upload_url (upload_secret not configured — set upload_secret to sign upload tokens)&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;build_upload_url (upload_secret not configured&quot;</span>
+                <span class="s2">&quot; — set upload_secret to sign upload tokens)&quot;</span><span class="p">,</span>
             <span class="p">)</span>
 
         <span class="n">ttl</span> <span class="o">=</span> <span class="n">ttl_seconds</span> <span class="k">if</span> <span class="n">ttl_seconds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_ttl_seconds</span>
         <span class="n">expires</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">ttl</span>
         <span class="n">token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_upload_token</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">,</span> <span class="n">content_type</span><span class="p">,</span> <span class="n">expires</span><span class="p">)</span>
-        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tus_metadata_header</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">,</span> <span class="n">content_type</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">expires</span><span class="p">)</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tus_metadata_header</span><span class="p">(</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">,</span> <span class="n">content_type</span><span class="p">,</span> <span class="n">token</span><span class="p">,</span> <span class="n">expires</span>
+        <span class="p">)</span>
         <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">tusd_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/files/&quot;</span>
 
         <span class="k">return</span> <span class="n">UploadUrlResult</span><span class="p">(</span>
@@ -658,7 +670,9 @@
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.resolve_access">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.resolve_access">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the best available URL for the asset.</span>
 
 <span class="sd">        * **Public assets** → permanent public URL.</span>
@@ -688,10 +702,10 @@
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_signed_private_url</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">AssetAccessNotSupportedError</span><span class="p">(</span>
                 <span class="n">_BACKEND_NAME</span><span class="p">,</span>
-                <span class="s2">&quot;resolve_access (private asset — set secure_link_secret to enable signed URLs)&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;resolve_access (private asset&quot;</span>
+                <span class="s2">&quot; — set secure_link_secret to enable signed URLs)&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
-
 
 
     <span class="c1"># ------------------------------------------------------------------</span>
@@ -719,7 +733,7 @@
 
 <span class="c1"># Verify structural compatibility at import time (cheap, dev-friendly)</span>
 <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">LocalNginxAssetRepository</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
-<span class="n">_</span><span class="p">:</span> <span class="n">IAssetRepository</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">LocalNginxAssetRepository</span><span class="p">)</span>  <span class="c1"># type: ignore[assignment]</span>
+<span class="n">_</span><span class="p">:</span> <span class="n">IAssetRepository</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">LocalNginxAssetRepository</span><span class="p">)</span>
 </pre></div>
 
            </div>

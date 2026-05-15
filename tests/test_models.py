@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -69,7 +69,7 @@ class TestAssetAccessUrl:
     def test_signed_url_is_not_permanent(self) -> None:
         url = AssetAccessUrl(
             url="https://s3.amazonaws.com/...",
-            expires_at=datetime.now(tz=timezone.utc),
+            expires_at=datetime.now(tz=UTC),
         )
         assert url.is_permanent is False
 
@@ -126,7 +126,7 @@ class TestUploadUrlResult:
             url="https://s3.amazonaws.com/...",
             method="PUT",
             headers={"Content-Type": "image/png"},
-            expires_at=datetime.now(tz=timezone.utc),
+            expires_at=datetime.now(tz=UTC),
             key="images/photo.png",
         )
         with pytest.raises(AttributeError):

@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import os
 import uuid as _uuid_mod
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from granite_assets.enums import AssetVisibility, CfSigningMethod
 from granite_assets.exceptions import (
@@ -68,6 +69,7 @@ def _cf_url_safe_base64(data: bytes) -> str:
 def _require_boto3() -> Any:
     try:
         import boto3  # noqa: PLC0415
+
         return boto3
     except ImportError as exc:
         raise ImportError(
@@ -156,7 +158,7 @@ class S3AssetRepository:
         """Strip the configured prefix to get the logical key back."""
         prefix = self._cfg.key_prefix.rstrip("/")
         if prefix and s3_key.startswith(f"{prefix}/"):
-            return s3_key[len(prefix) + 1:]
+            return s3_key[len(prefix) + 1 :]
         return s3_key
 
     def _effective_ttl(self, ttl_seconds: int | None) -> int:
@@ -196,14 +198,18 @@ class S3AssetRepository:
 
         try:
             from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.primitives.asymmetric import padding
+            from cryptography.hazmat.primitives.asymmetric import padding, rsa
         except ImportError as exc:
             raise AssetError(
-                "cryptography is required for CloudFront signed URLs: pip install cryptography"
+                "cryptography is required for CloudFront signed URLs: "
+                "pip install cryptography"
             ) from exc
 
         pem: str = self._cfg.cf_private_key  # type: ignore[assignment]
-        private_key = serialization.load_pem_private_key(pem.encode(), password=None)
+        private_key = cast(
+            rsa.RSAPrivateKey,
+            serialization.load_pem_private_key(pem.encode(), password=None),
+        )
 
         def _rsa_sign(message: bytes) -> bytes:
             return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
@@ -217,14 +223,14 @@ class S3AssetRepository:
             date_less_than=expires_at,
         )
 
-    def _get_rsa_signer(self):
-        """Return ``(rsa_sign_fn, private_key)`` for CloudFront custom-policy operations.
+    def _get_rsa_signer(self) -> Callable[[bytes], bytes]:
+        """Return the RSA signer for CloudFront custom-policy operations.
 
         Lazily imports ``cryptography``; raises :exc:`AssetError` if missing.
         """
         try:
             from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.primitives.asymmetric import padding
+            from cryptography.hazmat.primitives.asymmetric import padding, rsa
         except ImportError as exc:
             raise AssetError(
                 "cryptography is required for CloudFront signed operations: "
@@ -232,7 +238,10 @@ class S3AssetRepository:
             ) from exc
 
         pem: str = self._cfg.cf_private_key  # type: ignore[assignment]
-        private_key = serialization.load_pem_private_key(pem.encode(), password=None)
+        private_key = cast(
+            rsa.RSAPrivateKey,
+            serialization.load_pem_private_key(pem.encode(), password=None),
+        )
 
         def _rsa_sign(message: bytes) -> bytes:
             return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
@@ -312,9 +321,22 @@ class S3AssetRepository:
             raise AssetError(f"Failed to save asset {key!r} to S3: {exc}") from exc
 
         etag: str = response.get("ETag", "").strip('"')
+
+        # put_object does not return ContentLength in its response.
+        # Prefer the caller-supplied hint (zero overhead); fall back to a
+        # head_object call so the result always carries the real byte count.
+        content_length: int | None = request.content_length
+        if content_length is None:
+            try:
+                head = self._s3.head_object(Bucket=self._cfg.bucket, Key=s3_key)
+                content_length = head.get("ContentLength")
+            except Exception:
+                pass  # non-fatal: result will carry None rather than fail the upload
+
         return AssetSaveResult(
             key=key,
             backend_ref=f"s3://{self._cfg.bucket}/{s3_key}",
+            content_length=content_length,
             checksum=f"etag:{etag}" if etag else None,
             visibility=request.visibility,
         )
@@ -382,9 +404,12 @@ class S3AssetRepository:
             return True
         except Exception as exc:
             # botocore raises ClientError with 404 or NoSuchKey
-            error_code = getattr(getattr(exc, "response", {}), "get", lambda *_: None)(
-                "Error", {}
-            ).get("Code", "")
+            _response = getattr(exc, "response", None)
+            error_code = (
+                _response.get("Error", {}).get("Code", "")
+                if _response is not None
+                else ""
+            )
             if error_code in ("404", "NoSuchKey"):
                 return False
             # For moto/real boto3 we check the string representation
@@ -415,7 +440,7 @@ class S3AssetRepository:
             content_type=response.get("ContentType"),
             content_length=response.get("ContentLength"),
             last_modified=response.get("LastModified"),
-            checksum=f"etag:{response.get('ETag', '').strip('\"')}",
+            checksum=f"etag:{response.get('ETag', '').strip('"')}",
             visibility=visibility,
             metadata=raw_meta,
         )
@@ -440,7 +465,9 @@ class S3AssetRepository:
         url = self._public_url_for_key(s3_key)
         return AssetAccessUrl(url=url, expires_at=None)
 
-    def build_download_url(self, key: str, ttl_seconds: int | None = None) -> AssetAccessUrl:
+    def build_download_url(
+        self, key: str, ttl_seconds: int | None = None
+    ) -> AssetAccessUrl:
         """Generate a download URL for a private asset.
 
         Priority order:
@@ -616,7 +643,8 @@ class S3AssetRepository:
         """
         if not self._cfg.has_cf_signing():
             raise AssetConfigurationError(
-                "cf_key_id and cf_private_key must be set to use build_folder_signed_url"
+                "cf_key_id and cf_private_key must be set"
+                " to use build_folder_signed_url"
             )
         _assert_no_leading_slash(key)
         s3_key = self._s3_key(key)
@@ -731,7 +759,9 @@ class S3AssetRepository:
             key=key,
         )
 
-    def resolve_access(self, key: str, ttl_seconds: int | None = None) -> AssetAccessUrl:
+    def resolve_access(
+        self, key: str, ttl_seconds: int | None = None
+    ) -> AssetAccessUrl:
         """Return public URL for public assets, signed download URL for private."""
         _assert_no_leading_slash(key)
         descriptor = self.get_descriptor(key)
