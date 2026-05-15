@@ -74,7 +74,9 @@ def test_save_public_asset(repo: LocalNginxAssetRepository, storage_path: Path) 
     assert (storage_path / "public" / "images" / "logo.png").exists()
 
 
-def test_save_private_asset(repo: LocalNginxAssetRepository, storage_path: Path) -> None:
+def test_save_private_asset(
+    repo: LocalNginxAssetRepository, storage_path: Path
+) -> None:
     req = AssetSaveRequest(
         key="reports/q1.pdf",
         source=b"%PDF-1.4",
@@ -143,7 +145,9 @@ def test_save_without_key_file_exists_on_disk(
 ) -> None:
     """The auto-generated key must correspond to a real file on disk."""
     result = repo.save(
-        AssetSaveRequest(source=b"hello", content_type="text/plain", filename="note.txt")
+        AssetSaveRequest(
+            source=b"hello", content_type="text/plain", filename="note.txt"
+        )
     )
 
     assert repo.exists(result.key)
@@ -159,7 +163,9 @@ def test_save_without_key_no_extension(
 
     parts = result.key.split("/")
     assert len(parts) == 2
-    assert parts[0] == parts[1], "Folder and filename UUIDs must match when no extension"
+    assert parts[0] == parts[1], (
+        "Folder and filename UUIDs must match when no extension"
+    )
 
 
 def test_save_with_explicit_key_uses_it_unchanged(
@@ -318,7 +324,9 @@ def tusd_config(storage_path: Path) -> LocalNginxAssetRepositoryConfig:
 
 
 @pytest.fixture()
-def tusd_repo(tusd_config: LocalNginxAssetRepositoryConfig) -> LocalNginxAssetRepository:
+def tusd_repo(
+    tusd_config: LocalNginxAssetRepositoryConfig,
+) -> LocalNginxAssetRepository:
     return LocalNginxAssetRepository(tusd_config)
 
 
@@ -344,7 +352,9 @@ def test_build_upload_url_no_upload_secret_raises(storage_path: Path) -> None:
         repo.build_upload_url("file.pdf", "application/pdf")
 
 
-def test_build_upload_url_returns_tus_result(tusd_repo: LocalNginxAssetRepository) -> None:
+def test_build_upload_url_returns_tus_result(
+    tusd_repo: LocalNginxAssetRepository,
+) -> None:
     from granite_assets.models import UploadUrlResult
 
     result = tusd_repo.build_upload_url("docs/report.pdf", "application/pdf")
@@ -356,7 +366,9 @@ def test_build_upload_url_returns_tus_result(tusd_repo: LocalNginxAssetRepositor
     assert result.expires_at is not None
 
 
-def test_build_upload_url_tus_headers_present(tusd_repo: LocalNginxAssetRepository) -> None:
+def test_build_upload_url_tus_headers_present(
+    tusd_repo: LocalNginxAssetRepository,
+) -> None:
     result = tusd_repo.build_upload_url("img/photo.jpg", "image/jpeg")
 
     assert result.headers["Tus-Resumable"] == "1.0.0"
@@ -386,7 +398,9 @@ def test_build_upload_url_metadata_contains_expected_keys(
     assert len(parsed["upload-token"]) == 64  # SHA-256 hex
 
 
-def test_build_upload_url_token_is_valid_hmac(tusd_repo: LocalNginxAssetRepository) -> None:
+def test_build_upload_url_token_is_valid_hmac(
+    tusd_repo: LocalNginxAssetRepository,
+) -> None:
     import base64
     import hmac as _hmac
 
@@ -414,7 +428,9 @@ def test_build_upload_url_ttl_override(tusd_repo: LocalNginxAssetRepository) -> 
     import time
 
     before = int(time.time())
-    result = tusd_repo.build_upload_url("a.bin", "application/octet-stream", ttl_seconds=7200)
+    result = tusd_repo.build_upload_url(
+        "a.bin", "application/octet-stream", ttl_seconds=7200
+    )
     after = int(time.time())
 
     metadata = result.headers["Upload-Metadata"]
@@ -440,7 +456,9 @@ def test_build_upload_url_trailing_slash_normalized(storage_path: Path) -> None:
     assert not result.url.startswith("http://localhost:1080//")
 
 
-def test_build_upload_url_visibility_public(tusd_repo: LocalNginxAssetRepository) -> None:
+def test_build_upload_url_visibility_public(
+    tusd_repo: LocalNginxAssetRepository,
+) -> None:
     import base64
 
     result = tusd_repo.build_upload_url(

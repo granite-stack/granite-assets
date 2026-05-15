@@ -50,6 +50,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#package-installation">Package Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#development-installation">Development Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#s3-extra">S3 Extra</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#database-migrations-extra">Database Migrations Extra</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#type-checking">Type Checking</a></li>
 </ul>
 </li>
@@ -64,6 +65,7 @@
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="implementing-repository.html">Implementing a Custom Repository</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migrations.html">Database Migrations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -135,6 +137,19 @@ omit boto3 from your image and only import <code class="docutils literal notrans
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>granite-assets<span class="w">   </span><span class="c1"># boto3 included</span>
 </pre></div>
 </div>
+</section>
+<section id="database-migrations-extra">
+<h2>Database Migrations Extra<a class="headerlink" href="#database-migrations-extra" title="Link to this heading"></a></h2>
+<p>If you want to run granite-assets’ built-in Alembic migrations from your host
+application (for future asset metadata storage), install the <code class="docutils literal notranslate"><span class="pre">db</span></code> extra:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;granite-assets[db]&quot;</span>
+
+<span class="c1"># or with uv:</span>
+uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;granite-assets[db]&quot;</span>
+</pre></div>
+</div>
+<p>This pulls in <code class="docutils literal notranslate"><span class="pre">sqlalchemy&gt;=2.0</span></code> and <code class="docutils literal notranslate"><span class="pre">alembic&gt;=1.13</span></code>.  See
+<a class="reference internal" href="migrations.html"><span class="doc">Database Migrations</span></a> for usage details.</p>
 </section>
 <section id="type-checking">
 <h2>Type Checking<a class="headerlink" href="#type-checking" title="Link to this heading"></a></h2>

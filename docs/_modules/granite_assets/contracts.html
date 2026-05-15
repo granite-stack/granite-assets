@@ -54,6 +54,7 @@
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../implementing-repository.html">Implementing a Custom Repository</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migrations.html">Database Migrations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -262,7 +263,9 @@
 
 <div class="viewcode-block" id="IAssetRepository.build_download_url">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.build_download_url">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a time-limited URL suitable for downloading the asset.</span>
 
 <span class="sd">        For public assets this may return the same permanent URL.  For private</span>
@@ -313,7 +316,9 @@
 
 <div class="viewcode-block" id="IAssetRepository.resolve_access">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.resolve_access">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenience helper that returns the best available URL for the asset.</span>
 
 <span class="sd">        For public assets returns the permanent public URL; for private assets</span>

@@ -1,9 +1,9 @@
 """Enumerations used across the granite-assets library."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class AssetVisibility(str, Enum):
+class AssetVisibility(StrEnum):
     """Controls how an asset is accessible.
 
     PUBLIC  – the asset is reachable via a stable, non-expiring URL (e.g. served
@@ -16,7 +16,7 @@ class AssetVisibility(str, Enum):
     PRIVATE = "private"
 
 
-class CfSigningMethod(str, Enum):
+class CfSigningMethod(StrEnum):
     """Controls how CloudFront access is authorised for private assets.
 
     URL    – access credentials are embedded as query parameters on each URL

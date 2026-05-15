@@ -89,6 +89,7 @@ Contents
    :caption: Developer Guide
 
    implementing-repository
+   migrations
 
 .. toctree::
    :maxdepth: 2

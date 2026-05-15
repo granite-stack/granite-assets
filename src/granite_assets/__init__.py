@@ -77,4 +77,12 @@ try:
 except ImportError:
     pass
 
+# Optional: requires granite-assets[db] (alembic + sqlalchemy)
+try:
+    from granite_assets.migrations import upgrade_to_head  # noqa: F401
+
+    __all__ += ["upgrade_to_head"]
+except ImportError:
+    pass
+
 __version__ = "0.1.7"

@@ -154,7 +154,9 @@ def _tus_upload(
         "Upload-Offset": "0",
         "Content-Length": str(len(content)),
     }
-    resp2 = httpx.patch(location, headers=patch_headers, content=content, timeout=timeout)
+    resp2 = httpx.patch(
+        location, headers=patch_headers, content=content, timeout=timeout
+    )
     assert resp2.status_code == 204, (
         f"tus PATCH failed with {resp2.status_code}: {resp2.text!r}"
     )
@@ -305,7 +307,8 @@ def test_tus_info_sidecar_contains_our_metadata(
 
 @pytest.mark.integration
 def test_tus_upload_public_visibility(repo: LocalNginxAssetRepository) -> None:
-    """build_upload_url with visibility=PUBLIC sends 'public' in metadata and uploads."""
+    """build_upload_url with visibility=PUBLIC sends 'public' in metadata and
+    uploads."""
     content = b"public asset upload test"
     result = repo.build_upload_url(
         "public/logo.png",

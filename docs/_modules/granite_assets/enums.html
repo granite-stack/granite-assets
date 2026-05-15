@@ -54,6 +54,7 @@
 <p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../implementing-repository.html">Implementing a Custom Repository</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../migrations.html">Database Migrations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
@@ -87,12 +88,12 @@
   <h1>Source code for granite_assets.enums</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Enumerations used across the granite-assets library.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">StrEnum</span>
 
 
 <div class="viewcode-block" id="AssetVisibility">
 <a class="viewcode-back" href="../../api/enums.html#granite_assets.enums.AssetVisibility">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">AssetVisibility</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AssetVisibility</span><span class="p">(</span><span class="n">StrEnum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Controls how an asset is accessible.</span>
 
 <span class="sd">    PUBLIC  – the asset is reachable via a stable, non-expiring URL (e.g. served</span>
@@ -108,7 +109,7 @@
 
 <div class="viewcode-block" id="CfSigningMethod">
 <a class="viewcode-back" href="../../api/enums.html#granite_assets.enums.CfSigningMethod">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">CfSigningMethod</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CfSigningMethod</span><span class="p">(</span><span class="n">StrEnum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Controls how CloudFront access is authorised for private assets.</span>
 
 <span class="sd">    URL    – access credentials are embedded as query parameters on each URL</span>
