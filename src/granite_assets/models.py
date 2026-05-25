@@ -279,6 +279,21 @@ class LocalNginxAssetRepositoryConfig:
         upload_ttl_seconds: Default lifetime (in seconds) of upload tokens.
                             Default: ``3600`` (1 hour).  Individual calls to
                             :meth:`build_upload_url` can override this value.
+
+        upload_service_url: Base URL of a simple PUT-based upload service
+                            (e.g. ``"http://localhost:1080"``).  When set,
+                            :meth:`build_upload_url` returns ``method="PUT"``
+                            and a URL of the form
+                            ``{upload_service_url}/upload/{expires}/{token}/{b64key}``
+                            instead of a tus POST URL.  This makes the upload
+                            protocol transparent to the frontend across S3 and
+                            local backends.
+
+                            The token is ``HMAC-SHA256(f"{expires}:{key}",
+                            upload_secret).hexdigest()``.
+
+                            When *None* (default), falls back to the tusd flow
+                            if ``tusd_url`` is configured.
     """
 
     storage_path: str
@@ -292,6 +307,7 @@ class LocalNginxAssetRepositoryConfig:
     tusd_url: str | None = None
     upload_secret: str | None = None
     upload_ttl_seconds: int = 3600
+    upload_service_url: str | None = None
 
 
 @dataclass(slots=True)

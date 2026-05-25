@@ -393,6 +393,21 @@
 <span class="sd">        upload_ttl_seconds: Default lifetime (in seconds) of upload tokens.</span>
 <span class="sd">                            Default: ``3600`` (1 hour).  Individual calls to</span>
 <span class="sd">                            :meth:`build_upload_url` can override this value.</span>
+
+<span class="sd">        upload_service_url: Base URL of a simple PUT-based upload service</span>
+<span class="sd">                            (e.g. ``&quot;http://localhost:1080&quot;``).  When set,</span>
+<span class="sd">                            :meth:`build_upload_url` returns ``method=&quot;PUT&quot;``</span>
+<span class="sd">                            and a URL of the form</span>
+<span class="sd">                            ``{upload_service_url}/upload/{expires}/{token}/{b64key}``</span>
+<span class="sd">                            instead of a tus POST URL.  This makes the upload</span>
+<span class="sd">                            protocol transparent to the frontend across S3 and</span>
+<span class="sd">                            local backends.</span>
+
+<span class="sd">                            The token is ``HMAC-SHA256(f&quot;{expires}:{key}&quot;,</span>
+<span class="sd">                            upload_secret).hexdigest()``.</span>
+
+<span class="sd">                            When *None* (default), falls back to the tusd flow</span>
+<span class="sd">                            if ``tusd_url`` is configured.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">storage_path</span><span class="p">:</span> <span class="nb">str</span>
@@ -405,7 +420,8 @@
     <span class="n">secure_link_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span>
     <span class="n">tusd_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">upload_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">upload_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span></div>
+    <span class="n">upload_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span>
+    <span class="n">upload_service_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
 
