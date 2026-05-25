@@ -515,6 +515,33 @@ class LocalNginxAssetRepository:
                 is not configured.
         """
         _assert_no_leading_slash(key)
+
+        # ── PUT-based upload service (transparent with S3 presigned PUT) ─────────
+        if self._cfg.upload_service_url:
+            if not self._cfg.upload_secret:
+                raise AssetAccessNotSupportedError(
+                    _BACKEND_NAME,
+                    "build_upload_url (upload_secret not configured"
+                    " — set upload_secret to sign upload tokens)",
+                )
+            ttl = ttl_seconds if ttl_seconds is not None else self._cfg.upload_ttl_seconds
+            expires = int(time.time()) + ttl
+            mac = hmac.new(
+                self._cfg.upload_secret.encode("utf-8"),
+                f"{expires}:{key}".encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            b64key = base64.urlsafe_b64encode(key.encode("utf-8")).rstrip(b"=").decode()
+            url = f"{self._cfg.upload_service_url.rstrip('/')}/upload/{expires}/{mac}/{b64key}"
+            return UploadUrlResult(
+                url=url,
+                method="PUT",
+                headers={"Content-Type": content_type},
+                expires_at=datetime.fromtimestamp(expires, tz=UTC),
+                key=key,
+            )
+
+        # ── tus / tusd flow (legacy) ──────────────────────────────────────────────
         if not self._cfg.tusd_url:
             raise AssetAccessNotSupportedError(
                 _BACKEND_NAME,
