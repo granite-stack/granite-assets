@@ -184,7 +184,7 @@ class LocalNginxAssetRepository:
                 _BACKEND_NAME, "signed URLs (secure_link_secret not configured)"
             )
         raw = f"{expires}{uri_path} {self._cfg.secure_link_secret}".encode()
-        digest = hashlib.md5(raw).digest()  # noqa: S324 — required by Nginx protocol
+        digest = hashlib.md5(raw, usedforsecurity=False).digest()  # noqa: S324 — Nginx protocol
         return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
 
     def _build_signed_private_url(
@@ -250,7 +250,7 @@ class LocalNginxAssetRepository:
         visibility: AssetVisibility,
         content_type: str,
     ) -> str:
-        if self._cfg.upload_token_format == "v2":
+        if self._cfg.upload_token_format == "v2":  # nosec B105
             return json.dumps(
                 [expires, key, visibility.value, content_type],
                 separators=(",", ":"),
@@ -395,7 +395,7 @@ class LocalNginxAssetRepository:
 
         tmp = dest.parent / f".{dest.name}.{_uuid_mod.uuid4().hex}.tmp"
         stream = request.open_source()
-        md5 = hashlib.md5()  # noqa: S324 — integrity checksum, not security
+        md5 = hashlib.md5(usedforsecurity=False)  # noqa: S324 — integrity checksum
         sha256 = hashlib.sha256()
         total = 0
         limit = self._cfg.max_upload_bytes
@@ -653,7 +653,7 @@ class LocalNginxAssetRepository:
                 ttl_seconds if ttl_seconds is not None else self._cfg.upload_ttl_seconds
             )
             expires = int(time.time()) + ttl
-            if self._cfg.upload_token_format == "v2":
+            if self._cfg.upload_token_format == "v2":  # nosec B105
                 payload = self._upload_payload(expires, key, visibility, content_type)
             else:
                 payload = f"{expires}:{key}"
@@ -665,7 +665,7 @@ class LocalNginxAssetRepository:
             b64key = base64.urlsafe_b64encode(key.encode("utf-8")).rstrip(b"=").decode()
             service = self._cfg.upload_service_url.rstrip("/")
             url = f"{service}/upload/{expires}/{mac}/{b64key}"
-            if self._cfg.upload_token_format == "v2":
+            if self._cfg.upload_token_format == "v2":  # nosec B105
                 query = urllib.parse.urlencode(
                     {"visibility": visibility.value, "content_type": content_type}
                 )

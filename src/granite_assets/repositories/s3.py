@@ -26,6 +26,7 @@ Design decisions
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
@@ -60,6 +61,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client  # noqa: F401
 
 _BACKEND_NAME = "S3AssetRepository"
+
+logger = logging.getLogger(__name__)
 
 _NOT_FOUND_CODES = frozenset({"404", "NoSuchKey", "NotFound"})
 
@@ -250,7 +253,7 @@ class S3AssetRepository:
         )
 
         def _rsa_sign(message: bytes) -> bytes:
-            return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
+            return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303  # nosec B303 — CloudFront protocol
 
         return _rsa_sign
 
@@ -344,8 +347,8 @@ class S3AssetRepository:
             try:
                 head = self._s3.head_object(Bucket=self._cfg.bucket, Key=s3_key)
                 content_length = head.get("ContentLength")
-            except Exception:
-                pass  # non-fatal: result will carry None rather than fail the upload
+            except Exception as exc:  # non-fatal: result carries None instead
+                logger.debug("head_object after save failed for %r: %s", key, exc)
 
         return AssetSaveResult(
             key=key,
