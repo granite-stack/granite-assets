@@ -118,7 +118,15 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">cast</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets._keys</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_asset_key</span><span class="p">,</span> <span class="n">validate_key</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets._keys</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">check_content_type</span><span class="p">,</span>
+    <span class="n">check_size</span><span class="p">,</span>
+    <span class="n">quote_key</span><span class="p">,</span>
+    <span class="n">quote_pattern</span><span class="p">,</span>
+    <span class="n">resolve_asset_key</span><span class="p">,</span>
+    <span class="n">validate_key</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.contracts</span><span class="w"> </span><span class="kn">import</span> <span class="n">IAssetRepository</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span><span class="p">,</span> <span class="n">CfSigningMethod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">AssetConfigurationError</span><span class="p">,</span>
@@ -140,6 +148,45 @@
     <span class="kn">from</span><span class="w"> </span><span class="nn">mypy_boto3_s3</span><span class="w"> </span><span class="kn">import</span> <span class="n">S3Client</span>  <span class="c1"># noqa: F401</span>
 
 <span class="n">_BACKEND_NAME</span> <span class="o">=</span> <span class="s2">"S3AssetRepository"</span>
+
+<span class="n">_NOT_FOUND_CODES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">"404"</span><span class="p">,</span> <span class="s2">"NoSuchKey"</span><span class="p">,</span> <span class="s2">"NotFound"</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_not_found</span><span class="p">(</span><span class="n">exc</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return True only for a genuine "object does not exist" S3 error.</span>
+
+<span class="sd">    Decided from the structured ``response`` of a botocore ``ClientError``</span>
+<span class="sd">    (error code or HTTP status), never from the text of the message.</span>
+<span class="sd">    """</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="s2">"response"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="n">code</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Error"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Code"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ResponseMetadata"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"HTTPStatusCode"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">_NOT_FOUND_CODES</span> <span class="ow">or</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">404</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_pattern</span><span class="p">(</span><span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Validate a CloudFront resource *pattern* given as a logical key path.</span>
+
+<span class="sd">    It must be a safe relative path whose literal part is non-empty and that</span>
+<span class="sd">    only uses a single trailing ``*`` wildcard, so a caller cannot sign a</span>
+<span class="sd">    pattern that matches the whole distribution (``"*"``).</span>
+<span class="sd">    """</span>
+    <span class="n">literal</span> <span class="o">=</span> <span class="n">pattern</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">pattern</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"*"</span><span class="p">)</span> <span class="k">else</span> <span class="n">pattern</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">literal</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Signed-URL pattern must not be a bare wildcard: </span><span class="si">{</span><span class="n">pattern</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">"*"</span> <span class="ow">in</span> <span class="n">literal</span> <span class="ow">or</span> <span class="s2">"?"</span> <span class="ow">in</span> <span class="n">literal</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Signed-URL pattern may only use a single trailing '*': </span><span class="si">{</span><span class="n">pattern</span><span class="si">!r}</span><span class="s2">"</span>
+        <span class="p">)</span>
+    <span class="n">validate_key</span><span class="p">(</span><span class="n">literal</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span> <span class="k">if</span> <span class="n">literal</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span> <span class="k">else</span> <span class="n">literal</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_entry_filename</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">"/"</span> <span class="ow">in</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">"</span><span class="se">\\</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">name</span> <span class="ow">or</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"."</span><span class="p">,</span> <span class="s2">".."</span><span class="p">}:</span>
+        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid entry_filename: </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">validate_key</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_cf_url_safe_base64</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -209,7 +256,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">region</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetConfigurationError</span><span class="p">(</span><span class="s2">"region must not be empty"</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_build_client</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signature_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="n">boto3</span> <span class="o">=</span> <span class="n">_require_boto3</span><span class="p">()</span>
         <span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">"region_name"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">region</span><span class="p">,</span>
@@ -221,19 +268,23 @@
             <span class="n">kwargs</span><span class="p">[</span><span class="s2">"aws_secret_access_key"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">secret_access_key</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">session_token</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s2">"aws_session_token"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">session_token</span>
+        <span class="k">if</span> <span class="n">signature_version</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">botocore.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">"config"</span><span class="p">]</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span><span class="n">signature_version</span><span class="o">=</span><span class="n">signature_version</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">"s3"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_s3_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Map a logical key to the actual S3 object key."""</span>
+<div class="viewcode-block" id="S3AssetRepository.s3_key">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.s3_key">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">s3_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Map a logical key to the actual S3 object key (public API)."""</span>
         <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">key_prefix</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">prefix</span> <span class="k">else</span> <span class="n">key</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">prefix</span> <span class="k">else</span> <span class="n">key</span></div>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_logical_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s3_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Strip the configured prefix to get the logical key back."""</span>
-        <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">key_prefix</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">prefix</span> <span class="ow">and</span> <span class="n">s3_key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/"</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">s3_key</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:]</span>
-        <span class="k">return</span> <span class="n">s3_key</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_s3_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Backward-compatible alias of :meth:`s3_key`."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_effective_ttl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">ttl_seconds</span> <span class="k">if</span> <span class="n">ttl_seconds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">presign_ttl_seconds</span>
@@ -244,58 +295,41 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_public_url_for_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s3_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_base_url</span><span class="p">:</span>
             <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
         <span class="c1"># Fall back to virtual-hosted-style URL</span>
         <span class="n">bucket</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span>
         <span class="n">region</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">region</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"https://</span><span class="si">{</span><span class="n">bucket</span><span class="si">}</span><span class="s2">.s3.</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">.amazonaws.com/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"https://</span><span class="si">{</span><span class="n">bucket</span><span class="si">}</span><span class="s2">.s3.</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">.amazonaws.com/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_cf_base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Return the CloudFront base URL, raising if not configured."""</span>
+<div class="viewcode-block" id="S3AssetRepository.cf_base_url">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.cf_base_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cf_base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the CloudFront base URL (public API).</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetConfigurationError: If ``public_base_url`` is not configured.</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_base_url</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetConfigurationError</span><span class="p">(</span>
                 <span class="s2">"public_base_url must be set to use CloudFront signed URLs"</span>
             <span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span></div>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_build_cf_signed_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s3_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Generate a CloudFront signed URL (canned policy) for *s3_key*.</span>
 
-<span class="sd">        Uses ``Expires`` / ``Signature`` / ``Key-Pair-Id`` query params.</span>
+<div class="viewcode-block" id="S3AssetRepository.cf_object_url">
+<a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.cf_object_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cf_object_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the plain (unsigned, percent-encoded) CloudFront URL of *key*.</span>
+
+<span class="sd">        Used e.g. in signed-cookie mode, where credentials travel in cookies.</span>
 <span class="sd">        """</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">botocore.signers</span><span class="w"> </span><span class="kn">import</span> <span class="n">CloudFrontSigner</span>
-        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
-                <span class="s2">"botocore is required for CloudFront signed URLs (install boto3)"</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="n">validate_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cf_base_url</span><span class="p">()</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">))</span><span class="si">}</span><span class="s2">"</span></div>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.hazmat.primitives</span><span class="w"> </span><span class="kn">import</span> <span class="n">hashes</span><span class="p">,</span> <span class="n">serialization</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.hazmat.primitives.asymmetric</span><span class="w"> </span><span class="kn">import</span> <span class="n">padding</span><span class="p">,</span> <span class="n">rsa</span>
-        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
-                <span class="s2">"cryptography is required for CloudFront signed URLs: "</span>
-                <span class="s2">"pip install cryptography"</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 
-        <span class="n">pem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">cf_private_key</span>  <span class="c1"># type: ignore[assignment]</span>
-        <span class="n">private_key</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
-            <span class="n">rsa</span><span class="o">.</span><span class="n">RSAPrivateKey</span><span class="p">,</span>
-            <span class="n">serialization</span><span class="o">.</span><span class="n">load_pem_private_key</span><span class="p">(</span><span class="n">pem</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">),</span>
-        <span class="p">)</span>
-
-        <span class="k">def</span><span class="w"> </span><span class="nf">_rsa_sign</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">private_key</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">padding</span><span class="o">.</span><span class="n">PKCS1v15</span><span class="p">(),</span> <span class="n">hashes</span><span class="o">.</span><span class="n">SHA1</span><span class="p">())</span>  <span class="c1"># noqa: S303</span>
-
-        <span class="n">signer</span> <span class="o">=</span> <span class="n">CloudFrontSigner</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">cf_key_id</span><span class="p">,</span> <span class="n">_rsa_sign</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
-        <span class="n">resource_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">"</span>
-        <span class="n">expires_at</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">signer</span><span class="o">.</span><span class="n">generate_presigned_url</span><span class="p">(</span>
-            <span class="n">resource_url</span><span class="p">,</span>
-            <span class="n">date_less_than</span><span class="o">=</span><span class="n">expires_at</span><span class="p">,</span>
-        <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cf_base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Backward-compatible alias of :meth:`cf_base_url`."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_base_url</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_rsa_signer</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">bytes</span><span class="p">],</span> <span class="nb">bytes</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""Return the RSA signer for CloudFront custom-policy operations.</span>
@@ -308,7 +342,7 @@
         <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
                 <span class="s2">"cryptography is required for CloudFront signed operations: "</span>
-                <span class="s2">"pip install cryptography"</span>
+                <span class="s2">"pip install 'granite-assets[cloudfront]'"</span>
             <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 
         <span class="n">pem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">cf_private_key</span>  <span class="c1"># type: ignore[assignment]</span>
@@ -365,8 +399,14 @@
 <span class="sd">        """</span>
         <span class="n">key</span> <span class="o">=</span> <span class="n">_resolve_asset_key</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">check_content_type</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">allowed_content_types</span><span class="p">)</span>
+        <span class="n">check_size</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">content_length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">max_upload_bytes</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="ow">is</span> <span class="kc">False</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset already exists and overwrite is disabled: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">stream</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">open_source</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">max_upload_bytes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">request</span><span class="o">.</span><span class="n">content_length</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stream</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bounded</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">max_upload_bytes</span><span class="p">)</span>
 
         <span class="n">put_kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">"Bucket"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
@@ -393,6 +433,8 @@
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">put_object</span><span class="p">(</span><span class="o">**</span><span class="n">put_kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">AssetError</span><span class="p">:</span>
+            <span class="k">raise</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># botocore.exceptions.ClientError</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to save asset </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2"> to S3: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 
@@ -417,6 +459,24 @@
             <span class="n">visibility</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">,</span>
         <span class="p">)</span></div>
 
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_bounded</span><span class="p">(</span><span class="n">stream</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Read *stream* fully into memory, enforcing *limit* bytes.</span>
+
+<span class="sd">        Used only when a size cap is configured and the caller did not declare</span>
+<span class="sd">        ``content_length`` (boto3 needs a seekable body of known size).</span>
+<span class="sd">        """</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+
+        <span class="n">buf</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">()</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s2">""</span><span class="p">):</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="n">check_size</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+            <span class="n">buf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+        <span class="n">buf</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">buf</span>
 
 <div class="viewcode-block" id="S3AssetRepository.delete">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.delete">[docs]</a>
@@ -443,20 +503,27 @@
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">dest_key</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">source_key</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_descriptor</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>  <span class="c1"># AssetNotFoundError if missing</span>
+        <span class="k">if</span> <span class="n">source_key</span> <span class="o">==</span> <span class="n">dest_key</span><span class="p">:</span>
+            <span class="k">return</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dest_key</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Destination key already exists: </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="n">src_s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
         <span class="n">dst_s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">dest_key</span><span class="p">)</span>
-        <span class="n">copy_source</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"Bucket"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="s2">"Key"</span><span class="p">:</span> <span class="n">src_s3_key</span><span class="p">}</span>
+        <span class="n">copy_kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"CopySource"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"Bucket"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="s2">"Key"</span><span class="p">:</span> <span class="n">src_s3_key</span><span class="p">},</span>
+            <span class="s2">"Bucket"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+            <span class="s2">"Key"</span><span class="p">:</span> <span class="n">dst_s3_key</span><span class="p">,</span>
+            <span class="c1"># Keep content type and our x-visibility / x-checksum metadata.</span>
+            <span class="s2">"MetadataDirective"</span><span class="p">:</span> <span class="s2">"COPY"</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="c1"># copy_object never copies the ACL: re-apply it from the source</span>
+        <span class="c1"># visibility so a public asset stays publicly readable.</span>
+        <span class="k">if</span> <span class="n">source</span><span class="o">.</span><span class="n">visibility</span> <span class="o">==</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">use_object_acl</span><span class="p">:</span>
+            <span class="n">copy_kwargs</span><span class="p">[</span><span class="s2">"ACL"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"public-read"</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">copy_object</span><span class="p">(</span>
-                <span class="n">CopySource</span><span class="o">=</span><span class="n">copy_source</span><span class="p">,</span>
-                <span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
-                <span class="n">Key</span><span class="o">=</span><span class="n">dst_s3_key</span><span class="p">,</span>
-            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">copy_object</span><span class="p">(</span><span class="o">**</span><span class="n">copy_kwargs</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"Failed to copy asset </span><span class="si">{</span><span class="n">source_key</span><span class="si">!r}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
@@ -466,7 +533,17 @@
 <div class="viewcode-block" id="S3AssetRepository.move">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.move">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Copy then delete (S3 has no native move operation)."""</span>
+<span class="w">        </span><span class="sd">"""Copy then delete (S3 has no native move operation).</span>
+
+<span class="sd">        Not atomic: if the final delete fails the copy already exists and an</span>
+<span class="sd">        :exc:`AssetError` is raised so the caller can retry the cleanup.</span>
+<span class="sd">        Moving a key onto itself is a no-op.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">source_key</span> <span class="o">==</span> <span class="n">dest_key</span><span class="p">:</span>
+            <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">source_key</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+            <span class="k">return</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">source_key</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">delete_object</span><span class="p">(</span>
@@ -491,17 +568,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">head_object</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">Key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
             <span class="k">return</span> <span class="kc">True</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="c1"># botocore raises ClientError with 404 or NoSuchKey</span>
-            <span class="n">_response</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="s2">"response"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="n">error_code</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">_response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Error"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Code"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">_response</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-                <span class="k">else</span> <span class="s2">""</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="n">error_code</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"404"</span><span class="p">,</span> <span class="s2">"NoSuchKey"</span><span class="p">):</span>
-                <span class="k">return</span> <span class="kc">False</span>
-            <span class="c1"># For moto/real boto3 we check the string representation</span>
-            <span class="k">if</span> <span class="s2">"404"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"NoSuchKey"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"Not Found"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_is_not_found</span><span class="p">(</span><span class="n">exc</span><span class="p">):</span>
                 <span class="k">return</span> <span class="kc">False</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to check existence of </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span></div>
 
@@ -515,7 +582,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">head_object</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">Key</span><span class="o">=</span><span class="n">s3_key</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s2">"404"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"NoSuchKey"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"Not Found"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_is_not_found</span><span class="p">(</span><span class="n">exc</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to get descriptor for </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 
@@ -577,6 +644,10 @@
 <span class="sd">        3. ``cf_unsigned_urls=True`` + ``public_base_url`` set</span>
 <span class="sd">           → **plain CloudFront URL** (permanent, no signature).</span>
 <span class="sd">        4. Fallback → **S3 presigned URL** (time-limited, exposes S3 domain).</span>
+
+<span class="sd">        In mode 1 the signature authorises **only this object**.  To authorise a</span>
+<span class="sd">        whole folder (HLS/DASH) use :meth:`build_path_signed_url` or</span>
+<span class="sd">        :meth:`build_folder_signed_url`.</span>
 <span class="sd">        """</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
@@ -584,26 +655,29 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">has_cf_signing</span><span class="p">():</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">cf_signing_method</span> <span class="o">==</span> <span class="n">CfSigningMethod</span><span class="o">.</span><span class="n">COOKIE</span><span class="p">:</span>
                     <span class="c1"># Credentials are in browser cookies — return plain CF URL.</span>
-                    <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
-                    <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span>
+                        <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cf_base_url</span><span class="p">()</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                        <span class="n">expires_at</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="p">)</span>
 
-                <span class="c1"># Default: URL-based signed URL (custom policy, directory wildcard).</span>
+                <span class="c1"># Default: URL-based signed URL whose policy authorises exactly</span>
+                <span class="c1"># this object (no directory wildcard).  Folder-wide access is</span>
+                <span class="c1"># opt-in via build_path_signed_url / build_folder_signed_url.</span>
                 <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
-                <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
-                <span class="n">directory</span> <span class="o">=</span> <span class="n">s3_key</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="s2">"/"</span> <span class="ow">in</span> <span class="n">s3_key</span> <span class="k">else</span> <span class="n">s3_key</span>
-                <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">/*"</span>
+                <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_base_url</span><span class="p">()</span>
+                <span class="n">object_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
                 <span class="n">policy_b64</span><span class="p">,</span> <span class="n">sig_b64</span><span class="p">,</span> <span class="n">kp_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cf_custom_policy_params</span><span class="p">(</span>
-                    <span class="n">resource_pattern</span><span class="p">,</span> <span class="n">ttl</span>
+                    <span class="n">object_url</span><span class="p">,</span> <span class="n">ttl</span>
                 <span class="p">)</span>
                 <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">"</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">object_url</span><span class="si">}</span><span class="s2">"</span>
                     <span class="sa">f</span><span class="s2">"?Policy=</span><span class="si">{</span><span class="n">policy_b64</span><span class="si">}</span><span class="s2">&amp;Signature=</span><span class="si">{</span><span class="n">sig_b64</span><span class="si">}</span><span class="s2">&amp;Key-Pair-Id=</span><span class="si">{</span><span class="n">kp_id</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span>
                 <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">has_cf_unsigned_url</span><span class="p">():</span>
                 <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">public_base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>  <span class="c1"># type: ignore[union-attr]</span>
-                <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">"</span>
+                <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
                 <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
             <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
@@ -620,6 +694,12 @@
             <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
         <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span></div>
 
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_pattern_matches</span><span class="p">(</span><span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">s3_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">pattern</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"*"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">s3_key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">pattern</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">s3_key</span> <span class="o">==</span> <span class="n">pattern</span>
 
 <div class="viewcode-block" id="S3AssetRepository.build_path_signed_url">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.s3.S3AssetRepository.build_path_signed_url">[docs]</a>
@@ -661,22 +741,31 @@
             <span class="p">)</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_base_url</span><span class="p">()</span>
         <span class="n">s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">path_pattern</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Derive: strip filename, append /*</span>
-            <span class="n">directory</span> <span class="o">=</span> <span class="n">s3_key</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="s2">"/"</span> <span class="ow">in</span> <span class="n">s3_key</span> <span class="k">else</span> <span class="n">s3_key</span>
-            <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">/*"</span>
+            <span class="k">if</span> <span class="s2">"/"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">s3_key</span><span class="p">:</span>
+                <span class="c1"># Root-level object: authorise just that object, never the</span>
+                <span class="c1"># whole distribution.</span>
+                <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">directory</span> <span class="o">=</span> <span class="n">s3_key</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span><span class="si">}</span><span class="s2">/*"</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">path_pattern</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">"*"</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">))</span>
-            <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+            <span class="n">_validate_pattern</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">)</span>
+            <span class="n">full_pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pattern_matches</span><span class="p">(</span><span class="n">full_pattern</span><span class="p">,</span> <span class="n">s3_key</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"path_pattern </span><span class="si">{</span><span class="n">path_pattern</span><span class="si">!r}</span><span class="s2"> does not cover key </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span>
+                <span class="p">)</span>
+            <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_pattern</span><span class="p">(</span><span class="n">full_pattern</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
 
         <span class="n">policy_b64</span><span class="p">,</span> <span class="n">sig_b64</span><span class="p">,</span> <span class="n">kp_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cf_custom_policy_params</span><span class="p">(</span>
             <span class="n">resource_pattern</span><span class="p">,</span> <span class="n">ttl</span>
         <span class="p">)</span>
         <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_key</span><span class="si">}</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
             <span class="sa">f</span><span class="s2">"?Policy=</span><span class="si">{</span><span class="n">policy_b64</span><span class="si">}</span><span class="s2">&amp;Signature=</span><span class="si">{</span><span class="n">sig_b64</span><span class="si">}</span><span class="s2">&amp;Key-Pair-Id=</span><span class="si">{</span><span class="n">kp_id</span><span class="si">}</span><span class="s2">"</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span></div>
@@ -758,9 +847,10 @@
                 <span class="s2">"key must contain at least one '/' separator."</span>
             <span class="p">)</span>
 
+        <span class="n">_validate_entry_filename</span><span class="p">(</span><span class="n">entry_filename</span><span class="p">)</span>
         <span class="n">folder</span> <span class="o">=</span> <span class="n">s3_key</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># e.g. "assets/&lt;uuid&gt;"</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
-        <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">folder</span><span class="si">}</span><span class="s2">/*"</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_base_url</span><span class="p">()</span>
+        <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span><span class="si">}</span><span class="s2">/*"</span>
         <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
 
         <span class="n">policy_b64</span><span class="p">,</span> <span class="n">sig_b64</span><span class="p">,</span> <span class="n">kp_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cf_custom_policy_params</span><span class="p">(</span>
@@ -768,7 +858,7 @@
         <span class="p">)</span>
         <span class="n">entry_s3_key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">folder</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">entry_filename</span><span class="si">}</span><span class="s2">"</span>
         <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">entry_s3_key</span><span class="si">}</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">entry_s3_key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
             <span class="sa">f</span><span class="s2">"?Policy=</span><span class="si">{</span><span class="n">policy_b64</span><span class="si">}</span><span class="s2">&amp;Signature=</span><span class="si">{</span><span class="n">sig_b64</span><span class="si">}</span><span class="s2">&amp;Key-Pair-Id=</span><span class="si">{</span><span class="n">kp_id</span><span class="si">}</span><span class="s2">"</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span></div>
@@ -805,10 +895,11 @@
             <span class="k">raise</span> <span class="n">AssetConfigurationError</span><span class="p">(</span>
                 <span class="s2">"cf_key_id and cf_private_key must be set to use build_signed_cookies"</span>
             <span class="p">)</span>
+        <span class="n">_validate_pattern</span><span class="p">(</span><span class="n">key_pattern</span><span class="p">)</span>
         <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cf_base_url</span><span class="p">()</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_base_url</span><span class="p">()</span>
         <span class="n">s3_pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key_pattern</span><span class="p">)</span>
-        <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">s3_pattern</span><span class="si">}</span><span class="s2">"</span>
+        <span class="n">resource_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_pattern</span><span class="p">(</span><span class="n">s3_pattern</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
 
         <span class="n">policy_b64</span><span class="p">,</span> <span class="n">sig_b64</span><span class="p">,</span> <span class="n">kp_id</span><span class="p">,</span> <span class="n">unix_expires</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_cf_custom_policy_params</span><span class="p">(</span>
             <span class="n">resource_pattern</span><span class="p">,</span> <span class="n">ttl</span>
@@ -830,8 +921,16 @@
         <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">content_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadUrlResult</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Generate a presigned PUT URL for client-side upload.</span>
+
+<span class="sd">        ``config.allowed_content_types`` is enforced here.  A presigned PUT</span>
+<span class="sd">        cannot cap the body size by itself: pass *content_length* to bind the</span>
+<span class="sd">        exact size into the signature (the client must then send exactly that</span>
+<span class="sd">        many bytes; it is also checked against ``config.max_upload_bytes``).</span>
+<span class="sd">        Without it, validate the stored object size after the upload.</span>
 
 <span class="sd">        The client must send the file as an HTTP PUT with the ``Content-Type``</span>
 <span class="sd">        header set to exactly the value provided here.  No other headers are</span>
@@ -844,17 +943,25 @@
 <span class="sd">                requests.put(result.url, data=f, headers=result.headers)</span>
 <span class="sd">        """</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">check_content_type</span><span class="p">(</span><span class="n">content_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">allowed_content_types</span><span class="p">)</span>
+        <span class="n">check_size</span><span class="p">(</span><span class="n">content_length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">max_upload_bytes</span><span class="p">)</span>
         <span class="n">ttl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_ttl</span><span class="p">(</span><span class="n">ttl_seconds</span><span class="p">)</span>
         <span class="n">s3_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"Bucket"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+            <span class="s2">"Key"</span><span class="p">:</span> <span class="n">s3_key</span><span class="p">,</span>
+            <span class="s2">"ContentType"</span><span class="p">:</span> <span class="n">content_type</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"Content-Type"</span><span class="p">:</span> <span class="n">content_type</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">content_length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">"ContentLength"</span><span class="p">]</span> <span class="o">=</span> <span class="n">content_length</span>
+            <span class="n">headers</span><span class="p">[</span><span class="s2">"Content-Length"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">content_length</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span><span class="o">.</span><span class="n">generate_presigned_url</span><span class="p">(</span>
-                <span class="s2">"put_object"</span><span class="p">,</span>
-                <span class="n">Params</span><span class="o">=</span><span class="p">{</span>
-                    <span class="s2">"Bucket"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
-                    <span class="s2">"Key"</span><span class="p">:</span> <span class="n">s3_key</span><span class="p">,</span>
-                    <span class="s2">"ContentType"</span><span class="p">:</span> <span class="n">content_type</span><span class="p">,</span>
-                <span class="p">},</span>
-                <span class="n">ExpiresIn</span><span class="o">=</span><span class="n">ttl</span><span class="p">,</span>
+            <span class="c1"># The legacy (SigV2) presigner does not sign Content-Length; SigV4</span>
+            <span class="c1"># does, so a size-bound URL is generated with a SigV4 client.</span>
+            <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s3</span> <span class="k">if</span> <span class="n">content_length</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_client</span><span class="p">(</span><span class="s2">"s3v4"</span><span class="p">)</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">generate_presigned_url</span><span class="p">(</span>
+                <span class="s2">"put_object"</span><span class="p">,</span> <span class="n">Params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">ExpiresIn</span><span class="o">=</span><span class="n">ttl</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
@@ -863,7 +970,7 @@
         <span class="k">return</span> <span class="n">UploadUrlResult</span><span class="p">(</span>
             <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
             <span class="n">method</span><span class="o">=</span><span class="s2">"PUT"</span><span class="p">,</span>
-            <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"Content-Type"</span><span class="p">:</span> <span class="n">content_type</span><span class="p">},</span>
+            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
             <span class="n">expires_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_expires_at</span><span class="p">(</span><span class="n">ttl</span><span class="p">),</span>
             <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
         <span class="p">)</span></div>
@@ -884,8 +991,8 @@
 
 
 
-<span class="c1"># Verify structural compatibility at import time</span>
-<span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">S3AssetRepository</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
+<span class="c1"># Structural compatibility with the protocol is checked by mypy.</span>
+<span class="n">_</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">IAssetRepository</span><span class="p">]</span> <span class="o">=</span> <span class="n">S3AssetRepository</span>
 </pre></div>
 
            </div>

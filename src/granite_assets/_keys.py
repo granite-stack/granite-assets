@@ -69,6 +69,11 @@ def quote_key(key: str) -> str:
     return quote(key, safe="/")
 
 
+def quote_pattern(pattern: str) -> str:
+    """Like :func:`quote_key` but keeps the ``*`` wildcard of a resource pattern."""
+    return quote(pattern, safe="/*")
+
+
 def check_content_type(content_type: str, allowed: Iterable[str] | None) -> None:
     """Raise :class:`AssetError` if *content_type* is not in *allowed*.
 

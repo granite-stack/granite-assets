@@ -30,7 +30,15 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
-from granite_assets._keys import resolve_asset_key, validate_key
+from granite_assets._keys import (
+    check_content_type,
+    check_size,
+    quote_key,
+    quote_pattern,
+    resolve_asset_key,
+    validate_key,
+)
+from granite_assets.contracts import IAssetRepository
 from granite_assets.enums import AssetVisibility, CfSigningMethod
 from granite_assets.exceptions import (
     AssetConfigurationError,
@@ -52,6 +60,45 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client  # noqa: F401
 
 _BACKEND_NAME = "S3AssetRepository"
+
+_NOT_FOUND_CODES = frozenset({"404", "NoSuchKey", "NotFound"})
+
+
+def _is_not_found(exc: BaseException) -> bool:
+    """Return True only for a genuine "object does not exist" S3 error.
+
+    Decided from the structured ``response`` of a botocore ``ClientError``
+    (error code or HTTP status), never from the text of the message.
+    """
+    response = getattr(exc, "response", None)
+    if not isinstance(response, dict):
+        return False
+    code = str(response.get("Error", {}).get("Code", ""))
+    status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return code in _NOT_FOUND_CODES or status == 404
+
+
+def _validate_pattern(pattern: str) -> None:
+    """Validate a CloudFront resource *pattern* given as a logical key path.
+
+    It must be a safe relative path whose literal part is non-empty and that
+    only uses a single trailing ``*`` wildcard, so a caller cannot sign a
+    pattern that matches the whole distribution (``"*"``).
+    """
+    literal = pattern[:-1] if pattern.endswith("*") else pattern
+    if not literal.strip("/"):
+        raise AssetError(f"Signed-URL pattern must not be a bare wildcard: {pattern!r}")
+    if "*" in literal or "?" in literal:
+        raise AssetError(
+            f"Signed-URL pattern may only use a single trailing '*': {pattern!r}"
+        )
+    validate_key(literal.rstrip("/") if literal.endswith("/") else literal)
+
+
+def _validate_entry_filename(name: str) -> None:
+    if not name or "/" in name or "\\" in name or name in {".", ".."}:
+        raise AssetError(f"Invalid entry_filename: {name!r}")
+    validate_key(name)
 
 
 def _cf_url_safe_base64(data: bytes) -> str:
@@ -116,7 +163,7 @@ class S3AssetRepository:
         if not self._cfg.region:
             raise AssetConfigurationError("region must not be empty")
 
-    def _build_client(self) -> Any:
+    def _build_client(self, signature_version: str | None = None) -> Any:
         boto3 = _require_boto3()
         kwargs: dict[str, Any] = {
             "region_name": self._cfg.region,
@@ -128,19 +175,20 @@ class S3AssetRepository:
             kwargs["aws_secret_access_key"] = self._cfg.secret_access_key
         if self._cfg.session_token:
             kwargs["aws_session_token"] = self._cfg.session_token
+        if signature_version:
+            from botocore.config import Config
+
+            kwargs["config"] = Config(signature_version=signature_version)
         return boto3.client("s3", **kwargs)
 
-    def _s3_key(self, key: str) -> str:
-        """Map a logical key to the actual S3 object key."""
+    def s3_key(self, key: str) -> str:
+        """Map a logical key to the actual S3 object key (public API)."""
         prefix = self._cfg.key_prefix.rstrip("/")
         return f"{prefix}/{key}" if prefix else key
 
-    def _logical_key(self, s3_key: str) -> str:
-        """Strip the configured prefix to get the logical key back."""
-        prefix = self._cfg.key_prefix.rstrip("/")
-        if prefix and s3_key.startswith(f"{prefix}/"):
-            return s3_key[len(prefix) + 1 :]
-        return s3_key
+    def _s3_key(self, key: str) -> str:
+        """Backward-compatible alias of :meth:`s3_key`."""
+        return self.s3_key(key)
 
     def _effective_ttl(self, ttl_seconds: int | None) -> int:
         return ttl_seconds if ttl_seconds is not None else self._cfg.presign_ttl_seconds
@@ -151,58 +199,35 @@ class S3AssetRepository:
     def _public_url_for_key(self, s3_key: str) -> str:
         if self._cfg.public_base_url:
             base = self._cfg.public_base_url.rstrip("/")
-            return f"{base}/{s3_key}"
+            return f"{base}/{quote_key(s3_key)}"
         # Fall back to virtual-hosted-style URL
         bucket = self._cfg.bucket
         region = self._cfg.region
-        return f"https://{bucket}.s3.{region}.amazonaws.com/{s3_key}"
+        return f"https://{bucket}.s3.{region}.amazonaws.com/{quote_key(s3_key)}"
 
-    def _cf_base_url(self) -> str:
-        """Return the CloudFront base URL, raising if not configured."""
+    def cf_base_url(self) -> str:
+        """Return the CloudFront base URL (public API).
+
+        Raises:
+            AssetConfigurationError: If ``public_base_url`` is not configured.
+        """
         if not self._cfg.public_base_url:
             raise AssetConfigurationError(
                 "public_base_url must be set to use CloudFront signed URLs"
             )
         return self._cfg.public_base_url.rstrip("/")
 
-    def _build_cf_signed_url(self, s3_key: str, ttl: int) -> str:
-        """Generate a CloudFront signed URL (canned policy) for *s3_key*.
+    def cf_object_url(self, key: str) -> str:
+        """Return the plain (unsigned, percent-encoded) CloudFront URL of *key*.
 
-        Uses ``Expires`` / ``Signature`` / ``Key-Pair-Id`` query params.
+        Used e.g. in signed-cookie mode, where credentials travel in cookies.
         """
-        try:
-            from botocore.signers import CloudFrontSigner
-        except ImportError as exc:
-            raise AssetError(
-                "botocore is required for CloudFront signed URLs (install boto3)"
-            ) from exc
+        validate_key(key)
+        return f"{self.cf_base_url()}/{quote_key(self.s3_key(key))}"
 
-        try:
-            from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.primitives.asymmetric import padding, rsa
-        except ImportError as exc:
-            raise AssetError(
-                "cryptography is required for CloudFront signed URLs: "
-                "pip install cryptography"
-            ) from exc
-
-        pem: str = self._cfg.cf_private_key  # type: ignore[assignment]
-        private_key = cast(
-            rsa.RSAPrivateKey,
-            serialization.load_pem_private_key(pem.encode(), password=None),
-        )
-
-        def _rsa_sign(message: bytes) -> bytes:
-            return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())  # noqa: S303
-
-        signer = CloudFrontSigner(self._cfg.cf_key_id, _rsa_sign)  # type: ignore[arg-type]
-        base = self._cf_base_url()
-        resource_url = f"{base}/{s3_key}"
-        expires_at = self._expires_at(ttl)
-        return signer.generate_presigned_url(
-            resource_url,
-            date_less_than=expires_at,
-        )
+    def _cf_base_url(self) -> str:
+        """Backward-compatible alias of :meth:`cf_base_url`."""
+        return self.cf_base_url()
 
     def _get_rsa_signer(self) -> Callable[[bytes], bytes]:
         """Return the RSA signer for CloudFront custom-policy operations.
@@ -215,7 +240,7 @@ class S3AssetRepository:
         except ImportError as exc:
             raise AssetError(
                 "cryptography is required for CloudFront signed operations: "
-                "pip install cryptography"
+                "pip install 'granite-assets[cloudfront]'"
             ) from exc
 
         pem: str = self._cfg.cf_private_key  # type: ignore[assignment]
@@ -270,8 +295,14 @@ class S3AssetRepository:
         """
         key = _resolve_asset_key(request.key, request.filename)
         _assert_no_leading_slash(key)
+        check_content_type(request.content_type, self._cfg.allowed_content_types)
+        check_size(request.content_length, self._cfg.max_upload_bytes)
+        if request.overwrite is False and self.exists(key):
+            raise AssetError(f"Asset already exists and overwrite is disabled: {key!r}")
         s3_key = self._s3_key(key)
         stream = request.open_source()
+        if self._cfg.max_upload_bytes is not None and request.content_length is None:
+            stream = self._bounded(stream, self._cfg.max_upload_bytes)
 
         put_kwargs: dict[str, Any] = {
             "Bucket": self._cfg.bucket,
@@ -298,6 +329,8 @@ class S3AssetRepository:
 
         try:
             response = self._s3.put_object(**put_kwargs)
+        except AssetError:
+            raise
         except Exception as exc:  # botocore.exceptions.ClientError
             raise AssetError(f"Failed to save asset {key!r} to S3: {exc}") from exc
 
@@ -322,6 +355,24 @@ class S3AssetRepository:
             visibility=request.visibility,
         )
 
+    @staticmethod
+    def _bounded(stream: Any, limit: int) -> Any:
+        """Read *stream* fully into memory, enforcing *limit* bytes.
+
+        Used only when a size cap is configured and the caller did not declare
+        ``content_length`` (boto3 needs a seekable body of known size).
+        """
+        import io
+
+        buf = io.BytesIO()
+        total = 0
+        for chunk in iter(lambda: stream.read(65536), b""):
+            total += len(chunk)
+            check_size(total, limit)
+            buf.write(chunk)
+        buf.seek(0)
+        return buf
+
     def delete(self, key: str) -> None:
         """Delete an S3 object.
 
@@ -342,27 +393,44 @@ class S3AssetRepository:
         _assert_no_leading_slash(source_key)
         _assert_no_leading_slash(dest_key)
 
-        if not self.exists(source_key):
-            raise AssetNotFoundError(source_key)
+        source = self.get_descriptor(source_key)  # AssetNotFoundError if missing
+        if source_key == dest_key:
+            return
         if not overwrite and self.exists(dest_key):
             raise AssetError(f"Destination key already exists: {dest_key!r}")
 
         src_s3_key = self._s3_key(source_key)
         dst_s3_key = self._s3_key(dest_key)
-        copy_source = {"Bucket": self._cfg.bucket, "Key": src_s3_key}
+        copy_kwargs: dict[str, Any] = {
+            "CopySource": {"Bucket": self._cfg.bucket, "Key": src_s3_key},
+            "Bucket": self._cfg.bucket,
+            "Key": dst_s3_key,
+            # Keep content type and our x-visibility / x-checksum metadata.
+            "MetadataDirective": "COPY",
+        }
+        # copy_object never copies the ACL: re-apply it from the source
+        # visibility so a public asset stays publicly readable.
+        if source.visibility == AssetVisibility.PUBLIC and self._cfg.use_object_acl:
+            copy_kwargs["ACL"] = "public-read"
         try:
-            self._s3.copy_object(
-                CopySource=copy_source,
-                Bucket=self._cfg.bucket,
-                Key=dst_s3_key,
-            )
+            self._s3.copy_object(**copy_kwargs)
         except Exception as exc:
             raise AssetError(
                 f"Failed to copy asset {source_key!r} -> {dest_key!r}: {exc}"
             ) from exc
 
     def move(self, source_key: str, dest_key: str, *, overwrite: bool = True) -> None:
-        """Copy then delete (S3 has no native move operation)."""
+        """Copy then delete (S3 has no native move operation).
+
+        Not atomic: if the final delete fails the copy already exists and an
+        :exc:`AssetError` is raised so the caller can retry the cleanup.
+        Moving a key onto itself is a no-op.
+        """
+        if source_key == dest_key:
+            _assert_no_leading_slash(source_key)
+            if not self.exists(source_key):
+                raise AssetNotFoundError(source_key)
+            return
         self.copy(source_key, dest_key, overwrite=overwrite)
         try:
             self._s3.delete_object(
@@ -384,17 +452,7 @@ class S3AssetRepository:
             self._s3.head_object(Bucket=self._cfg.bucket, Key=self._s3_key(key))
             return True
         except Exception as exc:
-            # botocore raises ClientError with 404 or NoSuchKey
-            _response = getattr(exc, "response", None)
-            error_code = (
-                _response.get("Error", {}).get("Code", "")
-                if _response is not None
-                else ""
-            )
-            if error_code in ("404", "NoSuchKey"):
-                return False
-            # For moto/real boto3 we check the string representation
-            if "404" in str(exc) or "NoSuchKey" in str(exc) or "Not Found" in str(exc):
+            if _is_not_found(exc):
                 return False
             raise AssetError(f"Failed to check existence of {key!r}: {exc}") from exc
 
@@ -405,7 +463,7 @@ class S3AssetRepository:
         try:
             response = self._s3.head_object(Bucket=self._cfg.bucket, Key=s3_key)
         except Exception as exc:
-            if "404" in str(exc) or "NoSuchKey" in str(exc) or "Not Found" in str(exc):
+            if _is_not_found(exc):
                 raise AssetNotFoundError(key) from exc
             raise AssetError(f"Failed to get descriptor for {key!r}: {exc}") from exc
 
@@ -461,6 +519,10 @@ class S3AssetRepository:
         3. ``cf_unsigned_urls=True`` + ``public_base_url`` set
            → **plain CloudFront URL** (permanent, no signature).
         4. Fallback → **S3 presigned URL** (time-limited, exposes S3 domain).
+
+        In mode 1 the signature authorises **only this object**.  To authorise a
+        whole folder (HLS/DASH) use :meth:`build_path_signed_url` or
+        :meth:`build_folder_signed_url`.
         """
         _assert_no_leading_slash(key)
         s3_key = self._s3_key(key)
@@ -468,26 +530,29 @@ class S3AssetRepository:
             if self._cfg.has_cf_signing():
                 if self._cfg.cf_signing_method == CfSigningMethod.COOKIE:
                     # Credentials are in browser cookies — return plain CF URL.
-                    base = self._cf_base_url()
-                    return AssetAccessUrl(url=f"{base}/{s3_key}", expires_at=None)
+                    return AssetAccessUrl(
+                        url=f"{self.cf_base_url()}/{quote_key(s3_key)}",
+                        expires_at=None,
+                    )
 
-                # Default: URL-based signed URL (custom policy, directory wildcard).
+                # Default: URL-based signed URL whose policy authorises exactly
+                # this object (no directory wildcard).  Folder-wide access is
+                # opt-in via build_path_signed_url / build_folder_signed_url.
                 ttl = self._effective_ttl(ttl_seconds)
-                base = self._cf_base_url()
-                directory = s3_key.rsplit("/", 1)[0] if "/" in s3_key else s3_key
-                resource_pattern = f"{base}/{directory}/*"
+                base = self.cf_base_url()
+                object_url = f"{base}/{quote_key(s3_key)}"
                 policy_b64, sig_b64, kp_id, _ = self._build_cf_custom_policy_params(
-                    resource_pattern, ttl
+                    object_url, ttl
                 )
                 url = (
-                    f"{base}/{s3_key}"
+                    f"{object_url}"
                     f"?Policy={policy_b64}&Signature={sig_b64}&Key-Pair-Id={kp_id}"
                 )
                 return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
 
             if self._cfg.has_cf_unsigned_url():
                 base = self._cfg.public_base_url.rstrip("/")  # type: ignore[union-attr]
-                url = f"{base}/{s3_key}"
+                url = f"{base}/{quote_key(s3_key)}"
                 return AssetAccessUrl(url=url, expires_at=None)
 
             ttl = self._effective_ttl(ttl_seconds)
@@ -503,6 +568,12 @@ class S3AssetRepository:
                 f"Failed to generate signed download URL for {key!r}: {exc}"
             ) from exc
         return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
+
+    @staticmethod
+    def _pattern_matches(pattern: str, s3_key: str) -> bool:
+        if pattern.endswith("*"):
+            return s3_key.startswith(pattern[:-1])
+        return s3_key == pattern
 
     def build_path_signed_url(
         self,
@@ -542,22 +613,31 @@ class S3AssetRepository:
             )
         _assert_no_leading_slash(key)
         ttl = self._effective_ttl(ttl_seconds)
-        base = self._cf_base_url()
+        base = self.cf_base_url()
         s3_key = self._s3_key(key)
 
         if path_pattern is None:
-            # Derive: strip filename, append /*
-            directory = s3_key.rsplit("/", 1)[0] if "/" in s3_key else s3_key
-            resource_pattern = f"{base}/{directory}/*"
+            if "/" not in s3_key:
+                # Root-level object: authorise just that object, never the
+                # whole distribution.
+                resource_pattern = f"{base}/{quote_key(s3_key)}"
+            else:
+                directory = s3_key.rsplit("/", 1)[0]
+                resource_pattern = f"{base}/{quote_key(directory)}/*"
         else:
-            _assert_no_leading_slash(path_pattern.lstrip("*").lstrip("/"))
-            resource_pattern = f"{base}/{self._s3_key(path_pattern)}"
+            _validate_pattern(path_pattern)
+            full_pattern = self._s3_key(path_pattern)
+            if not self._pattern_matches(full_pattern, s3_key):
+                raise AssetError(
+                    f"path_pattern {path_pattern!r} does not cover key {key!r}"
+                )
+            resource_pattern = f"{base}/{quote_pattern(full_pattern)}"
 
         policy_b64, sig_b64, kp_id, _ = self._build_cf_custom_policy_params(
             resource_pattern, ttl
         )
         url = (
-            f"{base}/{s3_key}"
+            f"{base}/{quote_key(s3_key)}"
             f"?Policy={policy_b64}&Signature={sig_b64}&Key-Pair-Id={kp_id}"
         )
         return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
@@ -636,9 +716,10 @@ class S3AssetRepository:
                 "key must contain at least one '/' separator."
             )
 
+        _validate_entry_filename(entry_filename)
         folder = s3_key.rsplit("/", 1)[0]  # e.g. "assets/<uuid>"
-        base = self._cf_base_url()
-        resource_pattern = f"{base}/{folder}/*"
+        base = self.cf_base_url()
+        resource_pattern = f"{base}/{quote_key(folder)}/*"
         ttl = self._effective_ttl(ttl_seconds)
 
         policy_b64, sig_b64, kp_id, _ = self._build_cf_custom_policy_params(
@@ -646,7 +727,7 @@ class S3AssetRepository:
         )
         entry_s3_key = f"{folder}/{entry_filename}"
         url = (
-            f"{base}/{entry_s3_key}"
+            f"{base}/{quote_key(entry_s3_key)}"
             f"?Policy={policy_b64}&Signature={sig_b64}&Key-Pair-Id={kp_id}"
         )
         return AssetAccessUrl(url=url, expires_at=self._expires_at(ttl))
@@ -680,10 +761,11 @@ class S3AssetRepository:
             raise AssetConfigurationError(
                 "cf_key_id and cf_private_key must be set to use build_signed_cookies"
             )
+        _validate_pattern(key_pattern)
         ttl = self._effective_ttl(ttl_seconds)
-        base = self._cf_base_url()
+        base = self.cf_base_url()
         s3_pattern = self._s3_key(key_pattern)
-        resource_pattern = f"{base}/{s3_pattern}"
+        resource_pattern = f"{base}/{quote_pattern(s3_pattern)}"
 
         policy_b64, sig_b64, kp_id, unix_expires = self._build_cf_custom_policy_params(
             resource_pattern, ttl
@@ -702,8 +784,16 @@ class S3AssetRepository:
         key: str,
         content_type: str,
         ttl_seconds: int | None = None,
+        *,
+        content_length: int | None = None,
     ) -> UploadUrlResult:
         """Generate a presigned PUT URL for client-side upload.
+
+        ``config.allowed_content_types`` is enforced here.  A presigned PUT
+        cannot cap the body size by itself: pass *content_length* to bind the
+        exact size into the signature (the client must then send exactly that
+        many bytes; it is also checked against ``config.max_upload_bytes``).
+        Without it, validate the stored object size after the upload.
 
         The client must send the file as an HTTP PUT with the ``Content-Type``
         header set to exactly the value provided here.  No other headers are
@@ -716,17 +806,25 @@ class S3AssetRepository:
                 requests.put(result.url, data=f, headers=result.headers)
         """
         _assert_no_leading_slash(key)
+        check_content_type(content_type, self._cfg.allowed_content_types)
+        check_size(content_length, self._cfg.max_upload_bytes)
         ttl = self._effective_ttl(ttl_seconds)
         s3_key = self._s3_key(key)
+        params: dict[str, Any] = {
+            "Bucket": self._cfg.bucket,
+            "Key": s3_key,
+            "ContentType": content_type,
+        }
+        headers = {"Content-Type": content_type}
+        if content_length is not None:
+            params["ContentLength"] = content_length
+            headers["Content-Length"] = str(content_length)
         try:
-            url = self._s3.generate_presigned_url(
-                "put_object",
-                Params={
-                    "Bucket": self._cfg.bucket,
-                    "Key": s3_key,
-                    "ContentType": content_type,
-                },
-                ExpiresIn=ttl,
+            # The legacy (SigV2) presigner does not sign Content-Length; SigV4
+            # does, so a size-bound URL is generated with a SigV4 client.
+            client = self._s3 if content_length is None else self._build_client("s3v4")
+            url = client.generate_presigned_url(
+                "put_object", Params=params, ExpiresIn=ttl
             )
         except Exception as exc:
             raise AssetError(
@@ -735,7 +833,7 @@ class S3AssetRepository:
         return UploadUrlResult(
             url=url,
             method="PUT",
-            headers={"Content-Type": content_type},
+            headers=headers,
             expires_at=self._expires_at(ttl),
             key=key,
         )
@@ -751,5 +849,5 @@ class S3AssetRepository:
         return self.build_download_url(key, ttl_seconds=ttl_seconds)
 
 
-# Verify structural compatibility at import time
-assert isinstance(S3AssetRepository, type)
+# Structural compatibility with the protocol is checked by mypy.
+_: type[IAssetRepository] = S3AssetRepository
