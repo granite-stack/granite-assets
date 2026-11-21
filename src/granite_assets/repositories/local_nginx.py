@@ -51,7 +51,7 @@ import time
 import urllib.parse
 import uuid as _uuid_mod
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from granite_assets.contracts import IAssetRepository
 from granite_assets.enums import AssetVisibility
@@ -74,8 +74,23 @@ _BACKEND_NAME = "LocalNginxAssetRepository"
 
 
 def _assert_no_leading_slash(key: str) -> None:
+    """Reject unsafe asset keys (name kept for backward compatibility).
+
+    A valid key is a non-empty relative POSIX path without NUL bytes,
+    backslashes, drive letters or ``..`` segments.
+    """
+    if not key:
+        raise AssetError("Asset key must not be empty")
+    if "\x00" in key:
+        raise AssetError(f"Asset key must not contain NUL bytes: {key!r}")
     if key.startswith("/"):
         raise AssetError(f"Asset key must not start with '/': {key!r}")
+    if "\\" in key:
+        raise AssetError(f"Asset key must not contain backslashes: {key!r}")
+    if PureWindowsPath(key).drive:
+        raise AssetError(f"Asset key must not be an absolute path: {key!r}")
+    if ".." in key.split("/"):
+        raise AssetError(f"Asset key must not contain '..' segments: {key!r}")
 
 
 def _resolve_asset_key(key: str | None, filename: str | None) -> str:
@@ -140,6 +155,11 @@ class LocalNginxAssetRepository:
             if visibility == AssetVisibility.PUBLIC
             else self._cfg.private_prefix
         )
+        _assert_no_leading_slash(key)
+        base = (self._root / prefix).resolve()
+        candidate = (base / key).resolve()
+        if candidate == base or not candidate.is_relative_to(base):
+            raise AssetError(f"Asset key escapes the storage directory: {key!r}")
         return self._root / prefix / key
 
     def _public_url(self, prefix: str, key: str) -> str:
@@ -524,7 +544,9 @@ class LocalNginxAssetRepository:
                     "build_upload_url (upload_secret not configured"
                     " — set upload_secret to sign upload tokens)",
                 )
-            ttl = ttl_seconds if ttl_seconds is not None else self._cfg.upload_ttl_seconds
+            ttl = (
+                ttl_seconds if ttl_seconds is not None else self._cfg.upload_ttl_seconds
+            )
             expires = int(time.time()) + ttl
             mac = hmac.new(
                 self._cfg.upload_secret.encode("utf-8"),

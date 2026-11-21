@@ -502,3 +502,111 @@ def test_resolve_access_public(repo: LocalNginxAssetRepository) -> None:
 def test_resolve_access_missing_raises(repo: LocalNginxAssetRepository) -> None:
     with pytest.raises(AssetNotFoundError):
         repo.resolve_access("not-here.txt")
+
+
+# ---------------------------------------------------------------------------
+# Security: key validation / path traversal (GA-001)
+# ---------------------------------------------------------------------------
+
+_BAD_KEYS = [
+    "../../outside.txt",
+    "a/../../outside.txt",
+    "../private/x.txt",
+    "/etc/passwd",
+    "a\\b.txt",
+    "a\x00b.txt",
+    "",
+    "..",
+]
+
+
+def _save_req(key: str, visibility: AssetVisibility = AssetVisibility.PUBLIC):
+    return AssetSaveRequest(
+        key=key,
+        source=b"x",
+        content_type="text/plain",
+        visibility=visibility,
+    )
+
+
+@pytest.mark.parametrize("key", _BAD_KEYS)
+def test_unsafe_keys_rejected_in_all_operations(
+    repo: LocalNginxAssetRepository, storage_path: Path, key: str
+) -> None:
+    from granite_assets.exceptions import AssetError
+
+    ops = [
+        lambda: repo.save(_save_req(key)),
+        lambda: repo.delete(key),
+        lambda: repo.exists(key),
+        lambda: repo.get_descriptor(key),
+        lambda: repo.copy(key, "ok.txt"),
+        lambda: repo.copy("ok.txt", key),
+        lambda: repo.move(key, "ok.txt"),
+        lambda: repo.build_public_url(key),
+        lambda: repo.build_download_url(key),
+        lambda: repo.resolve_access(key),
+        lambda: repo.build_upload_url(key, "text/plain"),
+    ]
+    for op in ops:
+        with pytest.raises(AssetError):
+            op()
+    assert not (storage_path.parent / "outside.txt").exists()
+
+
+def test_traversal_does_not_write_outside(
+    repo: LocalNginxAssetRepository, storage_path: Path
+) -> None:
+    from granite_assets.exceptions import AssetError
+
+    with pytest.raises(AssetError):
+        repo.save(_save_req("../../outside.txt"))
+    assert not (storage_path.parent / "outside.txt").exists()
+    assert not (storage_path.parent.parent / "outside.txt").exists()
+
+
+def test_absolute_path_key_rejected_and_target_untouched(
+    repo: LocalNginxAssetRepository, tmp_path: Path
+) -> None:
+    from granite_assets.exceptions import AssetError
+
+    target = tmp_path / "victim.txt"
+    target.write_text("keep")
+    with pytest.raises(AssetError):
+        repo.delete(str(target))
+    assert target.read_text() == "keep"
+
+
+def test_symlink_escaping_storage_rejected(
+    repo: LocalNginxAssetRepository, storage_path: Path, tmp_path: Path
+) -> None:
+    from granite_assets.exceptions import AssetError
+
+    outside = tmp_path / "outside_dir"
+    outside.mkdir()
+    (outside / "secret.txt").write_text("secret")
+    public = storage_path / "public"
+    public.mkdir(parents=True)
+    (public / "link").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(AssetError):
+        repo.save(_save_req("link/new.txt"))
+    with pytest.raises(AssetError):
+        repo.delete("link/secret.txt")
+    with pytest.raises(AssetError):
+        repo.exists("link/secret.txt")
+    assert (outside / "secret.txt").read_text() == "secret"
+    assert not (outside / "new.txt").exists()
+
+
+def test_legitimate_nested_keys_still_work(
+    repo: LocalNginxAssetRepository, storage_path: Path
+) -> None:
+    res = repo.save(_save_req("users/42/avatars/a..b.txt"))
+    assert res.key == "users/42/avatars/a..b.txt"
+    assert (storage_path / "public/users/42/avatars/a..b.txt").read_bytes() == b"x"
+    assert repo.exists("users/42/avatars/a..b.txt")
+    repo.copy("users/42/avatars/a..b.txt", "x/y/z.txt")
+    assert repo.exists("x/y/z.txt")
+    repo.delete("x/y/z.txt")
+    assert not repo.exists("x/y/z.txt")
