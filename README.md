@@ -220,18 +220,28 @@ repo = build_asset_repository(config)  # → LocalNginxAssetRepository
 | `exists` | ✅ | ✅ |
 | `get_descriptor` | ✅ | ✅ |
 | `build_public_url` | ✅ public assets only | ✅ |
-| `build_download_url` | ✅ public / ❌ private | ✅ presigned GET |
-| `build_upload_url` | ❌ | ✅ presigned PUT |
+| `build_download_url` | ✅ public / ✅ private with `secure_link_secret` (signed) | ✅ presigned GET / CloudFront signed (single object) |
+| `build_upload_url` | ✅ with `upload_secret` + `upload_service_url` (PUT) or `tusd_url` (tus) | ✅ presigned PUT |
 
 ---
+
+## Behaviour notes
+
+* A key lives under **one** visibility on the local backend: re-saving, copying or moving it with another visibility removes the previous copy (or fails when `overwrite=False`), and `delete` removes every copy.
+* `save` on the local backend is atomic (temp file + `os.replace`/`os.link`) and verifies a declared `content_length` / `md5:` / `sha256:` checksum.
+* Both backends accept `max_upload_bytes` and `allowed_content_types` in their config. A presigned S3 PUT cannot cap the body size by itself: pass `content_length=` to `build_upload_url` to bind the size into the signature, or validate after upload.
+* Keys are validated (no `..`, empty segments, control characters, backslashes) and percent-encoded when placed in URLs.
+* CloudFront `build_download_url` authorises **only the requested object**. Use `build_path_signed_url` / `build_folder_signed_url` for folder-wide (HLS/DASH) access.
+* Consumers needing CloudFront details should use the public `cf_base_url()`, `s3_key()` and `cf_object_url()` methods (the underscore variants remain as aliases).
+* Install extras: `granite-assets[s3]`, `granite-assets[cloudfront]` (CloudFront signing, needs `cryptography`), `granite-assets[db]`.
 
 ## Local backend limitations
 
 `LocalNginxAssetRepository` has intentional design limitations:
 
-1. **No presigned URLs.** The local filesystem has no mechanism to generate time-limited, signed access tokens. `build_download_url` raises `AssetAccessNotSupportedError` for private assets. Route private asset downloads through your application (validate the session, then stream the file).
+1. **Signed private URLs need Nginx `secure_link`.** With `secure_link_secret` set, `build_download_url` / `resolve_access` return time-limited signed URLs for private assets (token algorithm of `ngx_http_secure_link_module`). Without it they raise `AssetAccessNotSupportedError` and you must route private downloads through your application.
 
-2. **No client-side upload URLs.** `build_upload_url` always raises `AssetAccessNotSupportedError`. Uploads must go through your application layer, which then calls `repo.save(...)`.
+2. **Client-side uploads need an upload service.** `build_upload_url` returns a signed PUT URL (`upload_service_url` + `upload_secret`) or a tus creation request (`tusd_url` + `upload_secret`). With neither configured it raises `AssetAccessNotSupportedError`; uploads then go through your application, which calls `repo.save(...)`. Set `upload_token_format="v2"` (and upgrade the receiving service) to bind content type and visibility into the token.
 
 3. **HTTP access control is your responsibility.** The library places private assets under the `private_prefix` directory, but only Nginx configuration (`auth_request`, `internal`, etc.) can enforce actual HTTP-level access control.
 

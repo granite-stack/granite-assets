@@ -22,7 +22,9 @@ Import the pieces you need directly from ``granite_assets``::
         AssetConfigurationError,
     )
 
-``S3AssetRepository`` is only available if the ``s3`` extra is installed.
+``S3AssetRepository`` is only available if ``boto3`` is installed (the ``s3``
+extra); CloudFront signing additionally needs the ``cloudfront`` extra
+(``cryptography``).
 """
 
 from granite_assets.contracts import IAssetRepository

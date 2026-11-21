@@ -37,6 +37,30 @@ from granite_assets.models import (
 
 
 @runtime_checkable
+class ISignedStreamRepository(Protocol):
+    """Optional capability: CloudFront-style folder/stream signing.
+
+    Implemented by :class:`~granite_assets.repositories.s3.S3AssetRepository`.
+    Consumers can check ``isinstance(repo, ISignedStreamRepository)`` instead
+    of importing the concrete class and calling private helpers.
+    """
+
+    def cf_base_url(self) -> str: ...
+
+    def s3_key(self, key: str) -> str: ...
+
+    def cf_object_url(self, key: str) -> str: ...
+
+    def build_path_signed_url(
+        self,
+        key: str,
+        *,
+        path_pattern: str | None = None,
+        ttl_seconds: int | None = None,
+    ) -> AssetAccessUrl: ...
+
+
+@runtime_checkable
 class IAssetRepository(Protocol):
     """Structural interface for asset repositories.
 

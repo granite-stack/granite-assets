@@ -18,7 +18,7 @@ make lint             # ruff check src/ tests/
 make format           # ruff format .
 make type-check       # mypy src/ (strict mode)
 make security-check   # bandit -r src/
-make check            # lint + format + type-check + security-check
+make check            # lint + format + type-check + security-check (CI runs lint, mypy, bandit and tests)
 make test             # pytest -v  (includes integration tests if Docker is available)
 make test-cov         # pytest with coverage (term + xml + html)
 make docs             # sphinx-build docs_source -> docs/
@@ -76,7 +76,7 @@ still get a narrowed static return type at call sites where the config type is k
 
 ### Optional extras via lazy imports, not hard dependencies
 
-Only `boto3` is a hard dependency. `S3AssetRepository` (`repositories/s3.py`) imports `boto3` lazily
+Only `boto3` is a hard dependency (extras: `s3`, `cloudfront` = `cryptography`, `db`). `S3AssetRepository` (`repositories/s3.py`) imports `boto3` lazily
 inside the class so `import granite_assets` never fails without the S3 extra installed; the top-level
 `__init__.py` wraps the `S3AssetRepository` import in `try/except ImportError` and only adds it to
 `__all__` on success. The same pattern applies to `granite_assets.migrations.upgrade_to_head`, gated
