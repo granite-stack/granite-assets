@@ -190,10 +190,20 @@ and the logical key.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.save">
 <span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveRequest" title="granite_assets.models.AssetSaveRequest"><span class="pre">AssetSaveRequest</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveResult" title="granite_assets.models.AssetSaveResult"><span class="pre">AssetSaveResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.save" title="Link to this definition"></a></dt>
-<dd><p>Write the asset to disk.</p>
+<dd><p>Write the asset to disk atomically.</p>
+<p>The content is streamed to a temporary file in the destination
+directory and published with <code class="docutils literal notranslate"><span class="pre">os.replace</span></code> (overwrite) or
+<code class="docutils literal notranslate"><span class="pre">os.link</span></code> (no overwrite, race-free), so readers never observe a
+truncated file and two concurrent <code class="docutils literal notranslate"><span class="pre">overwrite=False</span></code> saves cannot
+clobber each other.</p>
+<p>A key lives in exactly one visibility: when the key already exists under
+the <em>other</em> visibility, the old copy is removed after the new one has
+been written (or the save is refused when overwrite is disabled).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetError" title="granite_assets.exceptions.AssetError"><strong>AssetError</strong></a> – If the file already exists and <em>overwrite</em> is False.</p>
+<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetError" title="granite_assets.exceptions.AssetError"><strong>AssetError</strong></a> – If the file already exists and <em>overwrite</em> is False, the
+    size/type policy is violated, or the declared length/checksum
+    does not match the received bytes.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -201,21 +211,31 @@ and the logical key.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.delete">
 <span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.delete"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.delete" title="Link to this definition"></a></dt>
-<dd><p>Remove the asset file from disk.</p>
-<p>Tries both visibility prefixes so the caller does not need to know
-where the file is stored.</p>
+<dd><p>Remove the asset from disk.</p>
+<p>Removes the file under <strong>every</strong> visibility prefix so that no stale
+copy keeps being served.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetNotFoundError" title="granite_assets.exceptions.AssetNotFoundError"><strong>AssetNotFoundError</strong></a> – If the key exists under no prefix.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.copy">
 <span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.copy" title="Link to this definition"></a></dt>
-<dd><p>Copy a file on disk using shutil (server-side, no re-upload).</p>
+<dd><p>Copy a file on disk (server-side, no re-upload).</p>
+<p>The copy keeps the visibility of the source; any copy of <em>dest_key</em>
+under the other visibility is removed.  Copying a key onto itself is a
+no-op.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.local_nginx.LocalNginxAssetRepository.move">
 <span class="sig-name descname"><span class="pre">move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/local_nginx.html#LocalNginxAssetRepository.move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.move" title="Link to this definition"></a></dt>
 <dd><p>Move (rename) a file on disk.</p>
+<p>The file keeps its visibility; any copy of <em>dest_key</em> under the other
+visibility is removed.  Moving a key onto itself is a no-op.</p>
 </dd></dl>
 
 <dl class="py method">

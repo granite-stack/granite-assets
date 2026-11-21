@@ -114,12 +114,11 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_uuid_mod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">cast</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets._keys</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_asset_key</span><span class="p">,</span> <span class="n">validate_key</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span><span class="p">,</span> <span class="n">CfSigningMethod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">AssetConfigurationError</span><span class="p">,</span>
@@ -167,29 +166,11 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"/"</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset key must not start with '/': </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">"""Validate an asset key (name kept for backward compatibility)."""</span>
+    <span class="n">validate_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_resolve_asset_key</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Return the final storage key.</span>
-
-<span class="sd">    Three cases:</span>
-<span class="sd">    * *key* is ``None``  →  auto-generate ``&lt;uuid&gt;/&lt;uuid&gt;.&lt;ext&gt;``.</span>
-<span class="sd">    * *key* has no file extension  →  treat it as a folder prefix and append</span>
-<span class="sd">      ``/&lt;last_segment&gt;&lt;ext&gt;`` so callers can pass ``visibility/uuid`` and get</span>
-<span class="sd">      back ``visibility/uuid/uuid.ext``.</span>
-<span class="sd">    * *key* has a file extension  →  use it unchanged (backward-compatible).</span>
-<span class="sd">    """</span>
-    <span class="n">ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">asset_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">_uuid_mod</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">asset_id</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">asset_id</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">"</span>
-    <span class="n">_</span><span class="p">,</span> <span class="n">key_ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">key_ext</span><span class="p">:</span>
-        <span class="n">last_segment</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">last_segment</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">"</span>
-    <span class="k">return</span> <span class="n">key</span>
+<span class="n">_resolve_asset_key</span> <span class="o">=</span> <span class="n">resolve_asset_key</span>
 
 
 <div class="viewcode-block" id="S3AssetRepository">

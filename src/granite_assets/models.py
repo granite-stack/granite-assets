@@ -272,9 +272,9 @@ class LocalNginxAssetRepositoryConfig:
                             **Keep this value secret** — it authorises writes
                             to your storage directory.
 
-                            When *None* and *tusd_url* is set, any upload is
-                            accepted without verification (only appropriate
-                            behind a trusted network).
+                            When *None*, :meth:`build_upload_url` raises
+                            :exc:`AssetAccessNotSupportedError` (uploads are
+                            never issued without a signature).
 
         upload_ttl_seconds: Default lifetime (in seconds) of upload tokens.
                             Default: ``3600`` (1 hour).  Individual calls to
@@ -302,12 +302,28 @@ class LocalNginxAssetRepositoryConfig:
     private_prefix: str = "private"
     overwrite: bool = True
     create_directories: bool = True
-    secure_link_secret: str | None = None
+    secure_link_secret: str | None = field(default=None, repr=False)
     secure_link_ttl_seconds: int = 3600
     tusd_url: str | None = None
-    upload_secret: str | None = None
+    upload_secret: str | None = field(default=None, repr=False)
     upload_ttl_seconds: int = 3600
     upload_service_url: str | None = None
+    max_upload_bytes: int | None = None
+    """Maximum size in bytes accepted by :meth:`save` (``None`` = unlimited).
+    Enforced while streaming, so an oversized upload never lands on disk."""
+    allowed_content_types: tuple[str, ...] | None = None
+    """Allow-list of MIME types accepted by :meth:`save` and
+    :meth:`build_upload_url` (``None`` = any).  ``"image/*"`` wildcards are
+    supported; parameters such as ``; charset=utf-8`` are ignored."""
+    upload_token_format: str = "legacy"
+    """Format of the upload tokens.  ``"legacy"`` (default) keeps the original
+    wire format: the tus token signs ``"{expires}:{key}:{visibility}:{ct}"`` and
+    the PUT-service token signs ``"{expires}:{key}"`` only.  ``"v2"`` signs a
+    canonical JSON array ``[expires, key, visibility, content_type]`` in both
+    flows (no delimiter ambiguity, type and visibility bound to the token); the
+    PUT-service URL then also carries ``?visibility=...&content_type=...`` so
+    the receiving service can recompute the HMAC.  The upload service / tusd
+    hook must be upgraded before enabling ``"v2"``."""
 
 
 @dataclass(slots=True)
@@ -337,13 +353,13 @@ class S3AssetRepositoryConfig:
     presign_ttl_seconds: int = 3600
     endpoint_url: str | None = None
     access_key_id: str | None = None
-    secret_access_key: str | None = None
-    session_token: str | None = None
+    secret_access_key: str | None = field(default=None, repr=False)
+    session_token: str | None = field(default=None, repr=False)
     cf_key_id: str | None = None
     """CloudFront key-pair ID (``KXXXXXXXXXXXXX``). When set together with
     ``cf_private_key``, :meth:`build_download_url` generates a CloudFront
     signed URL instead of an S3 presigned URL."""
-    cf_private_key: str | None = None
+    cf_private_key: str | None = field(default=None, repr=False)
     """PEM-encoded RSA private key matching ``cf_key_id``. May be the raw PEM
     string (``-----BEGIN RSA PRIVATE KEY-----\\n...``) or a path to a file
     (not recommended; prefer injecting the value from a secret manager)."""
@@ -370,6 +386,14 @@ class S3AssetRepositoryConfig:
       CloudFront URL.  The caller must first obtain cookies via
       :meth:`build_signed_cookies` and set them on the browser.
     """
+    max_upload_bytes: int | None = None
+    """Maximum size in bytes accepted by :meth:`save` and by
+    ``build_upload_url(..., content_length=...)`` (``None`` = unlimited).
+    A presigned PUT cannot limit the body size by itself; see
+    :meth:`S3AssetRepository.build_upload_url`."""
+    allowed_content_types: tuple[str, ...] | None = None
+    """Allow-list of MIME types for :meth:`save` and :meth:`build_upload_url`
+    (``None`` = any).  ``"image/*"`` wildcards are supported."""
     use_object_acl: bool = True
     """When ``True`` (default), ``PutObject`` requests include an S3 object ACL
     (``public-read`` for public assets, none for private).  Set to ``False``

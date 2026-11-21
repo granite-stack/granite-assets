@@ -26,12 +26,11 @@ Design decisions
 
 from __future__ import annotations
 
-import os
-import uuid as _uuid_mod
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
+from granite_assets._keys import resolve_asset_key, validate_key
 from granite_assets.enums import AssetVisibility, CfSigningMethod
 from granite_assets.exceptions import (
     AssetConfigurationError,
@@ -79,29 +78,11 @@ def _require_boto3() -> Any:
 
 
 def _assert_no_leading_slash(key: str) -> None:
-    if key.startswith("/"):
-        raise AssetError(f"Asset key must not start with '/': {key!r}")
+    """Validate an asset key (name kept for backward compatibility)."""
+    validate_key(key)
 
 
-def _resolve_asset_key(key: str | None, filename: str | None) -> str:
-    """Return the final storage key.
-
-    Three cases:
-    * *key* is ``None``  →  auto-generate ``<uuid>/<uuid>.<ext>``.
-    * *key* has no file extension  →  treat it as a folder prefix and append
-      ``/<last_segment><ext>`` so callers can pass ``visibility/uuid`` and get
-      back ``visibility/uuid/uuid.ext``.
-    * *key* has a file extension  →  use it unchanged (backward-compatible).
-    """
-    ext = os.path.splitext(filename or "")[1].lower()
-    if key is None:
-        asset_id = str(_uuid_mod.uuid4())
-        return f"{asset_id}/{asset_id}{ext}"
-    _, key_ext = os.path.splitext(key)
-    if not key_ext:
-        last_segment = key.rstrip("/").rsplit("/", 1)[-1]
-        return f"{key}/{last_segment}{ext}"
-    return key
+_resolve_asset_key = resolve_asset_key
 
 
 class S3AssetRepository:

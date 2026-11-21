@@ -386,9 +386,9 @@
 <span class="sd">                            **Keep this value secret** — it authorises writes</span>
 <span class="sd">                            to your storage directory.</span>
 
-<span class="sd">                            When *None* and *tusd_url* is set, any upload is</span>
-<span class="sd">                            accepted without verification (only appropriate</span>
-<span class="sd">                            behind a trusted network).</span>
+<span class="sd">                            When *None*, :meth:`build_upload_url` raises</span>
+<span class="sd">                            :exc:`AssetAccessNotSupportedError` (uploads are</span>
+<span class="sd">                            never issued without a signature).</span>
 
 <span class="sd">        upload_ttl_seconds: Default lifetime (in seconds) of upload tokens.</span>
 <span class="sd">                            Default: ``3600`` (1 hour).  Individual calls to</span>
@@ -416,12 +416,28 @@
     <span class="n">private_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"private"</span>
     <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">create_directories</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="n">secure_link_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">secure_link_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">secure_link_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span>
     <span class="n">tusd_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">upload_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">upload_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">upload_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span>
-    <span class="n">upload_service_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+    <span class="n">upload_service_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">max_upload_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">"""Maximum size in bytes accepted by :meth:`save` (``None`` = unlimited).</span>
+<span class="sd">    Enforced while streaming, so an oversized upload never lands on disk."""</span>
+    <span class="n">allowed_content_types</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">"""Allow-list of MIME types accepted by :meth:`save` and</span>
+<span class="sd">    :meth:`build_upload_url` (``None`` = any).  ``"image/*"`` wildcards are</span>
+<span class="sd">    supported; parameters such as ``; charset=utf-8`` are ignored."""</span>
+    <span class="n">upload_token_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"legacy"</span>
+<span class="w">    </span><span class="sd">"""Format of the upload tokens.  ``"legacy"`` (default) keeps the original</span>
+<span class="sd">    wire format: the tus token signs ``"{expires}:{key}:{visibility}:{ct}"`` and</span>
+<span class="sd">    the PUT-service token signs ``"{expires}:{key}"`` only.  ``"v2"`` signs a</span>
+<span class="sd">    canonical JSON array ``[expires, key, visibility, content_type]`` in both</span>
+<span class="sd">    flows (no delimiter ambiguity, type and visibility bound to the token); the</span>
+<span class="sd">    PUT-service URL then also carries ``?visibility=...&amp;content_type=...`` so</span>
+<span class="sd">    the receiving service can recompute the HMAC.  The upload service / tusd</span>
+<span class="sd">    hook must be upgraded before enabling ``"v2"``."""</span></div>
 
 
 
@@ -454,13 +470,13 @@
     <span class="n">presign_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span>
     <span class="n">endpoint_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">access_key_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">secret_access_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">session_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">secret_access_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">session_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">cf_key_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">"""CloudFront key-pair ID (``KXXXXXXXXXXXXX``). When set together with</span>
 <span class="sd">    ``cf_private_key``, :meth:`build_download_url` generates a CloudFront</span>
 <span class="sd">    signed URL instead of an S3 presigned URL."""</span>
-    <span class="n">cf_private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">cf_private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">repr</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">"""PEM-encoded RSA private key matching ``cf_key_id``. May be the raw PEM</span>
 <span class="sd">    string (``-----BEGIN RSA PRIVATE KEY-----\\n...``) or a path to a file</span>
 <span class="sd">    (not recommended; prefer injecting the value from a secret manager)."""</span>
@@ -487,6 +503,14 @@
 <span class="sd">      CloudFront URL.  The caller must first obtain cookies via</span>
 <span class="sd">      :meth:`build_signed_cookies` and set them on the browser.</span>
 <span class="sd">    """</span>
+    <span class="n">max_upload_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">"""Maximum size in bytes accepted by :meth:`save` and by</span>
+<span class="sd">    ``build_upload_url(..., content_length=...)`` (``None`` = unlimited).</span>
+<span class="sd">    A presigned PUT cannot limit the body size by itself; see</span>
+<span class="sd">    :meth:`S3AssetRepository.build_upload_url`."""</span>
+    <span class="n">allowed_content_types</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">"""Allow-list of MIME types for :meth:`save` and :meth:`build_upload_url`</span>
+<span class="sd">    (``None`` = any).  ``"image/*"`` wildcards are supported."""</span>
     <span class="n">use_object_acl</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="w">    </span><span class="sd">"""When ``True`` (default), ``PutObject`` requests include an S3 object ACL</span>
 <span class="sd">    (``public-read`` for public assets, none for private).  Set to ``False``</span>

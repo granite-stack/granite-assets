@@ -45,14 +45,23 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import os
 import shutil
 import time
 import urllib.parse
 import uuid as _uuid_mod
 from datetime import UTC, datetime
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
+from typing import Any
 
+from granite_assets._keys import (
+    check_content_type,
+    check_size,
+    quote_key,
+    resolve_asset_key,
+    validate_key,
+)
 from granite_assets.contracts import IAssetRepository
 from granite_assets.enums import AssetVisibility
 from granite_assets.exceptions import (
@@ -74,44 +83,11 @@ _BACKEND_NAME = "LocalNginxAssetRepository"
 
 
 def _assert_no_leading_slash(key: str) -> None:
-    """Reject unsafe asset keys (name kept for backward compatibility).
-
-    A valid key is a non-empty relative POSIX path without NUL bytes,
-    backslashes, drive letters or ``..`` segments.
-    """
-    if not key:
-        raise AssetError("Asset key must not be empty")
-    if "\x00" in key:
-        raise AssetError(f"Asset key must not contain NUL bytes: {key!r}")
-    if key.startswith("/"):
-        raise AssetError(f"Asset key must not start with '/': {key!r}")
-    if "\\" in key:
-        raise AssetError(f"Asset key must not contain backslashes: {key!r}")
-    if PureWindowsPath(key).drive:
-        raise AssetError(f"Asset key must not be an absolute path: {key!r}")
-    if ".." in key.split("/"):
-        raise AssetError(f"Asset key must not contain '..' segments: {key!r}")
+    """Validate an asset key (name kept for backward compatibility)."""
+    validate_key(key)
 
 
-def _resolve_asset_key(key: str | None, filename: str | None) -> str:
-    """Return the final storage key.
-
-    Three cases:
-    * *key* is ``None``  →  auto-generate ``<uuid>/<uuid>.<ext>``.
-    * *key* has no file extension  →  treat it as a folder prefix and append
-      ``/<last_segment><ext>`` so callers can pass ``visibility/uuid`` and get
-      back ``visibility/uuid/uuid.ext``.
-    * *key* has a file extension  →  use it unchanged (backward-compatible).
-    """
-    ext = os.path.splitext(filename or "")[1].lower()
-    if key is None:
-        asset_id = str(_uuid_mod.uuid4())
-        return f"{asset_id}/{asset_id}{ext}"
-    _, key_ext = os.path.splitext(key)
-    if not key_ext:
-        last_segment = key.rstrip("/").rsplit("/", 1)[-1]
-        return f"{key}/{last_segment}{ext}"
-    return key
+_resolve_asset_key = resolve_asset_key
 
 
 class LocalNginxAssetRepository:
@@ -164,7 +140,7 @@ class LocalNginxAssetRepository:
 
     def _public_url(self, prefix: str, key: str) -> str:
         base = self._cfg.base_url.rstrip("/")
-        return f"{base}/{prefix}/{key}"
+        return f"{base}/{prefix}/{quote_key(key)}"
 
     def _uri_path(self, prefix: str, key: str) -> str:
         """Return the URI *path* component for the given prefix and key.
@@ -238,7 +214,7 @@ class LocalNginxAssetRepository:
         uri_path = self._uri_path(prefix, key)
         token = self._build_secure_link_token(uri_path, expires)
         base = self._cfg.base_url.rstrip("/")
-        url = f"{base}/{prefix}/{key}?md5={token}&expires={expires}"
+        url = f"{base}/{prefix}/{quote_key(key)}?md5={token}&expires={expires}"
         return AssetAccessUrl(
             url=url,
             expires_at=datetime.fromtimestamp(expires, tz=UTC),
@@ -260,12 +236,27 @@ class LocalNginxAssetRepository:
         Returns:
             Lowercase hex-encoded HMAC-SHA256 digest.
         """
-        payload = f"{expires}:{key}:{visibility.value}:{content_type}"
+        payload = self._upload_payload(expires, key, visibility, content_type)
         return hmac.new(
             self._cfg.upload_secret.encode("utf-8"),  # type: ignore[union-attr]
             payload.encode("utf-8"),
             "sha256",
         ).hexdigest()
+
+    def _upload_payload(
+        self,
+        expires: int,
+        key: str,
+        visibility: AssetVisibility,
+        content_type: str,
+    ) -> str:
+        if self._cfg.upload_token_format == "v2":
+            return json.dumps(
+                [expires, key, visibility.value, content_type],
+                separators=(",", ":"),
+                ensure_ascii=True,
+            )
+        return f"{expires}:{key}:{visibility.value}:{content_type}"
 
     def _tus_metadata_header(
         self,
@@ -295,113 +286,226 @@ class LocalNginxAssetRepository:
             ]
         )
 
-    def _md5_of_file(self, path: Path) -> str:
-        digest = hashlib.md5()
-        with path.open("rb") as fh:
-            for chunk in iter(lambda: fh.read(65536), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
+    @staticmethod
+    def _other_visibility(visibility: AssetVisibility) -> AssetVisibility:
+        if visibility == AssetVisibility.PUBLIC:
+            return AssetVisibility.PRIVATE
+        return AssetVisibility.PUBLIC
+
+    def _ensure_parent(self, dest: Path) -> None:
+        try:
+            if self._cfg.create_directories:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+            elif not dest.parent.exists():
+                raise AssetError(
+                    f"Parent directory does not exist: {dest.parent} "
+                    "(set create_directories=True to auto-create)"
+                )
+        except OSError as exc:
+            raise AssetError(f"Cannot prepare directory {dest.parent}: {exc}") from exc
+
+    @staticmethod
+    def _verify_declared(
+        request: AssetSaveRequest,
+        key: str,
+        total: int,
+        md5_hex: str,
+        sha256: Any,
+    ) -> None:
+        if request.content_length is not None and request.content_length != total:
+            raise AssetError(
+                f"Declared content_length {request.content_length} does not match "
+                f"the {total} bytes received for {key!r}"
+            )
+        if request.checksum:
+            algo, _, expected = request.checksum.partition(":")
+            actual = {"md5": md5_hex, "sha256": sha256.hexdigest()}.get(algo.lower())
+            if actual is not None and actual != expected.lower():
+                raise AssetError(f"Checksum mismatch for {key!r}")
+
+    @staticmethod
+    def _publish(tmp: Path, dest: Path, overwrite: bool, key: str) -> None:
+        """Move *tmp* into place atomically."""
+        if overwrite:
+            os.replace(tmp, dest)
+            return
+        try:
+            os.link(tmp, dest)  # fails with FileExistsError if dest exists
+        except FileExistsError as exc:
+            raise AssetError(
+                f"Asset already exists and overwrite is disabled: {key!r}"
+            ) from exc
+        except OSError:
+            # Filesystem without hard links: reserve the name exclusively.
+            try:
+                os.close(os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666))
+            except FileExistsError as exc:
+                raise AssetError(
+                    f"Asset already exists and overwrite is disabled: {key!r}"
+                ) from exc
+            os.replace(tmp, dest)
+
+    @staticmethod
+    def _remove_quietly(path: Path, key: str) -> None:
+        """Remove the stale other-visibility copy of *key*, if any."""
+        if path.exists():
+            try:
+                path.unlink()
+            except OSError as exc:
+                raise AssetError(
+                    f"Failed to remove previous copy of {key!r}: {exc}"
+                ) from exc
 
     # ------------------------------------------------------------------
     # Write operations
     # ------------------------------------------------------------------
 
     def save(self, request: AssetSaveRequest) -> AssetSaveResult:
-        """Write the asset to disk.
+        """Write the asset to disk atomically.
+
+        The content is streamed to a temporary file in the destination
+        directory and published with ``os.replace`` (overwrite) or
+        ``os.link`` (no overwrite, race-free), so readers never observe a
+        truncated file and two concurrent ``overwrite=False`` saves cannot
+        clobber each other.
+
+        A key lives in exactly one visibility: when the key already exists under
+        the *other* visibility, the old copy is removed after the new one has
+        been written (or the save is refused when overwrite is disabled).
 
         Raises:
-            AssetError: If the file already exists and *overwrite* is False.
+            AssetError: If the file already exists and *overwrite* is False, the
+                size/type policy is violated, or the declared length/checksum
+                does not match the received bytes.
         """
         key = _resolve_asset_key(request.key, request.filename)
         _assert_no_leading_slash(key)
+        check_content_type(request.content_type, self._cfg.allowed_content_types)
+        check_size(request.content_length, self._cfg.max_upload_bytes)
         overwrite = (
             request.overwrite if request.overwrite is not None else self._cfg.overwrite
         )
         dest = self._full_path(key, request.visibility)
+        other = self._full_path(key, self._other_visibility(request.visibility))
 
-        if dest.exists() and not overwrite:
-            raise AssetError(
-                f"Asset already exists and overwrite is disabled: {request.key!r}"
-            )
+        if not overwrite and (dest.exists() or other.exists()):
+            raise AssetError(f"Asset already exists and overwrite is disabled: {key!r}")
 
-        if self._cfg.create_directories:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-        elif not dest.parent.exists():
-            raise AssetError(
-                f"Parent directory does not exist: {dest.parent} "
-                "(set create_directories=True to auto-create)"
-            )
+        self._ensure_parent(dest)
 
+        tmp = dest.parent / f".{dest.name}.{_uuid_mod.uuid4().hex}.tmp"
         stream = request.open_source()
+        md5 = hashlib.md5()  # noqa: S324 — integrity checksum, not security
+        sha256 = hashlib.sha256()
         total = 0
+        limit = self._cfg.max_upload_bytes
         try:
-            with dest.open("wb") as fh:
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+            with os.fdopen(fd, "wb") as fh:
                 for chunk in iter(lambda: stream.read(65536), b""):
-                    fh.write(chunk)
                     total += len(chunk)
+                    check_size(total, limit)
+                    md5.update(chunk)
+                    sha256.update(chunk)
+                    fh.write(chunk)
+            self._verify_declared(request, key, total, md5.hexdigest(), sha256)
+            self._publish(tmp, dest, overwrite, key)
         except OSError as exc:
             raise AssetError(f"Failed to write asset {key!r}: {exc}") from exc
+        finally:
+            tmp.unlink(missing_ok=True)
 
-        checksum = f"md5:{self._md5_of_file(dest)}"
+        self._remove_quietly(other, key)
         return AssetSaveResult(
             key=key,
             backend_ref=str(dest),
             content_length=total,
-            checksum=checksum,
+            checksum=f"md5:{md5.hexdigest()}",
             visibility=request.visibility,
         )
 
     def delete(self, key: str) -> None:
-        """Remove the asset file from disk.
+        """Remove the asset from disk.
 
-        Tries both visibility prefixes so the caller does not need to know
-        where the file is stored.
+        Removes the file under **every** visibility prefix so that no stale
+        copy keeps being served.
+
+        Raises:
+            AssetNotFoundError: If the key exists under no prefix.
         """
         _assert_no_leading_slash(key)
+        found = False
         for visibility in AssetVisibility:
             path = self._full_path(key, visibility)
             if path.exists():
+                found = True
                 try:
                     path.unlink()
                 except OSError as exc:
                     raise AssetError(f"Failed to delete asset {key!r}: {exc}") from exc
-                return
-        raise AssetNotFoundError(key)
+        if not found:
+            raise AssetNotFoundError(key)
 
     def copy(self, source_key: str, dest_key: str, *, overwrite: bool = True) -> None:
-        """Copy a file on disk using shutil (server-side, no re-upload)."""
+        """Copy a file on disk (server-side, no re-upload).
+
+        The copy keeps the visibility of the source; any copy of *dest_key*
+        under the other visibility is removed.  Copying a key onto itself is a
+        no-op.
+        """
         _assert_no_leading_slash(source_key)
         _assert_no_leading_slash(dest_key)
 
         src_path = self._resolve_existing_path(source_key)
-        # Infer visibility from which sub-directory the source lives in
+        if source_key == dest_key:
+            return
         visibility = self._infer_visibility(src_path)
         dest_path = self._full_path(dest_key, visibility)
+        other = self._full_path(dest_key, self._other_visibility(visibility))
 
-        if dest_path.exists() and not overwrite:
+        if not overwrite and (dest_path.exists() or other.exists()):
             raise AssetError(f"Destination key already exists: {dest_key!r}")
 
-        if self._cfg.create_directories:
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-        shutil.copy2(src_path, dest_path)
+        self._ensure_parent(dest_path)
+        tmp = dest_path.parent / f".{dest_path.name}.{_uuid_mod.uuid4().hex}.tmp"
+        try:
+            shutil.copy2(src_path, tmp)
+            os.replace(tmp, dest_path)
+        except OSError as exc:
+            raise AssetError(
+                f"Failed to copy asset {source_key!r} -> {dest_key!r}: {exc}"
+            ) from exc
+        finally:
+            tmp.unlink(missing_ok=True)
+        self._remove_quietly(other, dest_key)
 
     def move(self, source_key: str, dest_key: str, *, overwrite: bool = True) -> None:
-        """Move (rename) a file on disk."""
+        """Move (rename) a file on disk.
+
+        The file keeps its visibility; any copy of *dest_key* under the other
+        visibility is removed.  Moving a key onto itself is a no-op.
+        """
         _assert_no_leading_slash(source_key)
         _assert_no_leading_slash(dest_key)
 
         src_path = self._resolve_existing_path(source_key)
+        if source_key == dest_key:
+            return
         visibility = self._infer_visibility(src_path)
         dest_path = self._full_path(dest_key, visibility)
+        other = self._full_path(dest_key, self._other_visibility(visibility))
 
-        if dest_path.exists() and not overwrite:
+        if not overwrite and (dest_path.exists() or other.exists()):
             raise AssetError(f"Destination key already exists: {dest_key!r}")
 
-        if self._cfg.create_directories:
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-        shutil.move(str(src_path), dest_path)
+        self._ensure_parent(dest_path)
+        try:
+            shutil.move(str(src_path), dest_path)
+        except OSError as exc:
+            raise AssetError(
+                f"Failed to move asset {source_key!r} -> {dest_key!r}: {exc}"
+            ) from exc
+        self._remove_quietly(other, dest_key)
 
     # ------------------------------------------------------------------
     # Query operations
@@ -535,6 +639,7 @@ class LocalNginxAssetRepository:
                 is not configured.
         """
         _assert_no_leading_slash(key)
+        check_content_type(content_type, self._cfg.allowed_content_types)
 
         # ── PUT-based upload service (transparent with S3 presigned PUT) ─────────
         if self._cfg.upload_service_url:
@@ -548,13 +653,23 @@ class LocalNginxAssetRepository:
                 ttl_seconds if ttl_seconds is not None else self._cfg.upload_ttl_seconds
             )
             expires = int(time.time()) + ttl
+            if self._cfg.upload_token_format == "v2":
+                payload = self._upload_payload(expires, key, visibility, content_type)
+            else:
+                payload = f"{expires}:{key}"
             mac = hmac.new(
                 self._cfg.upload_secret.encode("utf-8"),
-                f"{expires}:{key}".encode(),
+                payload.encode(),
                 hashlib.sha256,
             ).hexdigest()
             b64key = base64.urlsafe_b64encode(key.encode("utf-8")).rstrip(b"=").decode()
-            url = f"{self._cfg.upload_service_url.rstrip('/')}/upload/{expires}/{mac}/{b64key}"
+            service = self._cfg.upload_service_url.rstrip("/")
+            url = f"{service}/upload/{expires}/{mac}/{b64key}"
+            if self._cfg.upload_token_format == "v2":
+                query = urllib.parse.urlencode(
+                    {"visibility": visibility.value, "content_type": content_type}
+                )
+                url = f"{url}?{query}"
             return UploadUrlResult(
                 url=url,
                 method="PUT",
@@ -656,6 +771,5 @@ class LocalNginxAssetRepository:
             return AssetVisibility.PRIVATE
 
 
-# Verify structural compatibility at import time (cheap, dev-friendly)
-assert isinstance(LocalNginxAssetRepository, type)
-_: IAssetRepository = LocalNginxAssetRepository.__new__(LocalNginxAssetRepository)
+# Structural compatibility with the protocol is checked by mypy.
+_: type[IAssetRepository] = LocalNginxAssetRepository

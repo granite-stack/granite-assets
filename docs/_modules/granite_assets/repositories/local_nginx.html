@@ -133,14 +133,23 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hmac</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_uuid_mod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PureWindowsPath</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets._keys</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">check_content_type</span><span class="p">,</span>
+    <span class="n">check_size</span><span class="p">,</span>
+    <span class="n">quote_key</span><span class="p">,</span>
+    <span class="n">resolve_asset_key</span><span class="p">,</span>
+    <span class="n">validate_key</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.contracts</span><span class="w"> </span><span class="kn">import</span> <span class="n">IAssetRepository</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.enums</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssetVisibility</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">granite_assets.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
@@ -162,44 +171,11 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Reject unsafe asset keys (name kept for backward compatibility).</span>
-
-<span class="sd">    A valid key is a non-empty relative POSIX path without NUL bytes,</span>
-<span class="sd">    backslashes, drive letters or ``..`` segments.</span>
-<span class="sd">    """</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="s2">"Asset key must not be empty"</span><span class="p">)</span>
-    <span class="k">if</span> <span class="s2">"</span><span class="se">\x00</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset key must not contain NUL bytes: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"/"</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset key must not start with '/': </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="k">if</span> <span class="s2">"</span><span class="se">\\</span><span class="s2">"</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset key must not contain backslashes: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">PureWindowsPath</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">drive</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset key must not be an absolute path: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="k">if</span> <span class="s2">".."</span> <span class="ow">in</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"/"</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset key must not contain '..' segments: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">"""Validate an asset key (name kept for backward compatibility)."""</span>
+    <span class="n">validate_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_resolve_asset_key</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Return the final storage key.</span>
-
-<span class="sd">    Three cases:</span>
-<span class="sd">    * *key* is ``None``  →  auto-generate ``&lt;uuid&gt;/&lt;uuid&gt;.&lt;ext&gt;``.</span>
-<span class="sd">    * *key* has no file extension  →  treat it as a folder prefix and append</span>
-<span class="sd">      ``/&lt;last_segment&gt;&lt;ext&gt;`` so callers can pass ``visibility/uuid`` and get</span>
-<span class="sd">      back ``visibility/uuid/uuid.ext``.</span>
-<span class="sd">    * *key* has a file extension  →  use it unchanged (backward-compatible).</span>
-<span class="sd">    """</span>
-    <span class="n">ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">asset_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">_uuid_mod</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">asset_id</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">asset_id</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">"</span>
-    <span class="n">_</span><span class="p">,</span> <span class="n">key_ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">key_ext</span><span class="p">:</span>
-        <span class="n">last_segment</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">last_segment</span><span class="si">}{</span><span class="n">ext</span><span class="si">}</span><span class="s2">"</span>
-    <span class="k">return</span> <span class="n">key</span>
+<span class="n">_resolve_asset_key</span> <span class="o">=</span> <span class="n">resolve_asset_key</span>
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository">
@@ -257,7 +233,7 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_uri_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Return the URI *path* component for the given prefix and key.</span>
@@ -331,7 +307,7 @@
         <span class="n">uri_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri_path</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
         <span class="n">token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_secure_link_token</span><span class="p">(</span><span class="n">uri_path</span><span class="p">,</span> <span class="n">expires</span><span class="p">)</span>
         <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
-        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">?md5=</span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&amp;expires=</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">"</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">quote_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="si">}</span><span class="s2">?md5=</span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&amp;expires=</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">"</span>
         <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span>
             <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
             <span class="n">expires_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">expires</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="n">UTC</span><span class="p">),</span>
@@ -353,12 +329,27 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Lowercase hex-encoded HMAC-SHA256 digest.</span>
 <span class="sd">        """</span>
-        <span class="n">payload</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">visibility</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">content_type</span><span class="si">}</span><span class="s2">"</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upload_payload</span><span class="p">(</span><span class="n">expires</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">,</span> <span class="n">content_type</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">hmac</span><span class="o">.</span><span class="n">new</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_secret</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">),</span>  <span class="c1"># type: ignore[union-attr]</span>
             <span class="n">payload</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">),</span>
             <span class="s2">"sha256"</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_upload_payload</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">expires</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_token_format</span> <span class="o">==</span> <span class="s2">"v2"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">expires</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">content_type</span><span class="p">],</span>
+                <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">),</span>
+                <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">visibility</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">content_type</span><span class="si">}</span><span class="s2">"</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_tus_metadata_header</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -388,12 +379,75 @@
             <span class="p">]</span>
         <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_md5_of_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="n">digest</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
-        <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">fh</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s2">""</span><span class="p">):</span>
-                <span class="n">digest</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">digest</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_other_visibility</span><span class="p">(</span><span class="n">visibility</span><span class="p">:</span> <span class="n">AssetVisibility</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetVisibility</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">visibility</span> <span class="o">==</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span>
+        <span class="k">return</span> <span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dest</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">create_directories</span><span class="p">:</span>
+                <span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Parent directory does not exist: </span><span class="si">{</span><span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="si">}</span><span class="s2"> "</span>
+                    <span class="s2">"(set create_directories=True to auto-create)"</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cannot prepare directory </span><span class="si">{</span><span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_verify_declared</span><span class="p">(</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">total</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">md5_hex</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">sha256</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">content_length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">request</span><span class="o">.</span><span class="n">content_length</span> <span class="o">!=</span> <span class="n">total</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Declared content_length </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">content_length</span><span class="si">}</span><span class="s2"> does not match "</span>
+                <span class="sa">f</span><span class="s2">"the </span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2"> bytes received for </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">checksum</span><span class="p">:</span>
+            <span class="n">algo</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">expected</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">checksum</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">":"</span><span class="p">)</span>
+            <span class="n">actual</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"md5"</span><span class="p">:</span> <span class="n">md5_hex</span><span class="p">,</span> <span class="s2">"sha256"</span><span class="p">:</span> <span class="n">sha256</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">algo</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">actual</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">actual</span> <span class="o">!=</span> <span class="n">expected</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Checksum mismatch for </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_publish</span><span class="p">(</span><span class="n">tmp</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">dest</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Move *tmp* into place atomically."""</span>
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>  <span class="c1"># fails with FileExistsError if dest exists</span>
+        <span class="k">except</span> <span class="ne">FileExistsError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Asset already exists and overwrite is disabled: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="c1"># Filesystem without hard links: reserve the name exclusively.</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_EXCL</span><span class="p">,</span> <span class="mo">0o666</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">FileExistsError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Asset already exists and overwrite is disabled: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span>
+                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_remove_quietly</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Remove the stale other-visibility copy of *key*, if any."""</span>
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Failed to remove previous copy of </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 
     <span class="c1"># ------------------------------------------------------------------</span>
     <span class="c1"># Write operations</span>
@@ -402,47 +456,66 @@
 <div class="viewcode-block" id="LocalNginxAssetRepository.save">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.save">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetSaveResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Write the asset to disk.</span>
+<span class="w">        </span><span class="sd">"""Write the asset to disk atomically.</span>
+
+<span class="sd">        The content is streamed to a temporary file in the destination</span>
+<span class="sd">        directory and published with ``os.replace`` (overwrite) or</span>
+<span class="sd">        ``os.link`` (no overwrite, race-free), so readers never observe a</span>
+<span class="sd">        truncated file and two concurrent ``overwrite=False`` saves cannot</span>
+<span class="sd">        clobber each other.</span>
+
+<span class="sd">        A key lives in exactly one visibility: when the key already exists under</span>
+<span class="sd">        the *other* visibility, the old copy is removed after the new one has</span>
+<span class="sd">        been written (or the save is refused when overwrite is disabled).</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            AssetError: If the file already exists and *overwrite* is False.</span>
+<span class="sd">            AssetError: If the file already exists and *overwrite* is False, the</span>
+<span class="sd">                size/type policy is violated, or the declared length/checksum</span>
+<span class="sd">                does not match the received bytes.</span>
 <span class="sd">        """</span>
         <span class="n">key</span> <span class="o">=</span> <span class="n">_resolve_asset_key</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">check_content_type</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">allowed_content_types</span><span class="p">)</span>
+        <span class="n">check_size</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">content_length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">max_upload_bytes</span><span class="p">)</span>
         <span class="n">overwrite</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">overwrite</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">overwrite</span>
         <span class="p">)</span>
         <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">)</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_other_visibility</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">"Asset already exists and overwrite is disabled: </span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span>
-            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="p">(</span><span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="n">other</span><span class="o">.</span><span class="n">exists</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset already exists and overwrite is disabled: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">create_directories</span><span class="p">:</span>
-            <span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">"Parent directory does not exist: </span><span class="si">{</span><span class="n">dest</span><span class="o">.</span><span class="n">parent</span><span class="si">}</span><span class="s2"> "</span>
-                <span class="s2">"(set create_directories=True to auto-create)"</span>
-            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_parent</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
 
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">dest</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">".</span><span class="si">{</span><span class="n">dest</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">_uuid_mod</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">.tmp"</span>
         <span class="n">stream</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">open_source</span><span class="p">()</span>
+        <span class="n">md5</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>  <span class="c1"># noqa: S324 — integrity checksum, not security</span>
+        <span class="n">sha256</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
         <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">max_upload_bytes</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">with</span> <span class="n">dest</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_EXCL</span><span class="p">,</span> <span class="mo">0o666</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">os</span><span class="o">.</span><span class="n">fdopen</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">65536</span><span class="p">),</span> <span class="sa">b</span><span class="s2">""</span><span class="p">):</span>
-                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
                     <span class="n">total</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+                    <span class="n">check_size</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+                    <span class="n">md5</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+                    <span class="n">sha256</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_verify_declared</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">md5</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="n">sha256</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_publish</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to write asset </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">tmp</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="n">checksum</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"md5:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_md5_of_file</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remove_quietly</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">AssetSaveResult</span><span class="p">(</span>
             <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
             <span class="n">backend_ref</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">dest</span><span class="p">),</span>
             <span class="n">content_length</span><span class="o">=</span><span class="n">total</span><span class="p">,</span>
-            <span class="n">checksum</span><span class="o">=</span><span class="n">checksum</span><span class="p">,</span>
+            <span class="n">checksum</span><span class="o">=</span><span class="sa">f</span><span class="s2">"md5:</span><span class="si">{</span><span class="n">md5</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
             <span class="n">visibility</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">visibility</span><span class="p">,</span>
         <span class="p">)</span></div>
 
@@ -450,62 +523,93 @@
 <div class="viewcode-block" id="LocalNginxAssetRepository.delete">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.delete">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Remove the asset file from disk.</span>
+<span class="w">        </span><span class="sd">"""Remove the asset from disk.</span>
 
-<span class="sd">        Tries both visibility prefixes so the caller does not need to know</span>
-<span class="sd">        where the file is stored.</span>
+<span class="sd">        Removes the file under **every** visibility prefix so that no stale</span>
+<span class="sd">        copy keeps being served.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AssetNotFoundError: If the key exists under no prefix.</span>
 <span class="sd">        """</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">for</span> <span class="n">visibility</span> <span class="ow">in</span> <span class="n">AssetVisibility</span><span class="p">:</span>
             <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
                 <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to delete asset </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-                <span class="k">return</span>
-        <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetNotFoundError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.copy">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.copy">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Copy a file on disk using shutil (server-side, no re-upload)."""</span>
+<span class="w">        </span><span class="sd">"""Copy a file on disk (server-side, no re-upload).</span>
+
+<span class="sd">        The copy keeps the visibility of the source; any copy of *dest_key*</span>
+<span class="sd">        under the other visibility is removed.  Copying a key onto itself is a</span>
+<span class="sd">        no-op.</span>
+<span class="sd">        """</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">dest_key</span><span class="p">)</span>
 
         <span class="n">src_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_existing_path</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
-        <span class="c1"># Infer visibility from which sub-directory the source lives in</span>
+        <span class="k">if</span> <span class="n">source_key</span> <span class="o">==</span> <span class="n">dest_key</span><span class="p">:</span>
+            <span class="k">return</span>
         <span class="n">visibility</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_infer_visibility</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span>
         <span class="n">dest_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">dest_key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">)</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">dest_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_other_visibility</span><span class="p">(</span><span class="n">visibility</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">dest_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="p">(</span><span class="n">dest_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="n">other</span><span class="o">.</span><span class="n">exists</span><span class="p">()):</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Destination key already exists: </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">create_directories</span><span class="p">:</span>
-            <span class="n">dest_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-        <span class="n">shutil</span><span class="o">.</span><span class="n">copy2</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_parent</span><span class="p">(</span><span class="n">dest_path</span><span class="p">)</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">dest_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">".</span><span class="si">{</span><span class="n">dest_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">_uuid_mod</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">.tmp"</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy2</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">tmp</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Failed to copy asset </span><span class="si">{</span><span class="n">source_key</span><span class="si">!r}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">tmp</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remove_quietly</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalNginxAssetRepository.move">
 <a class="viewcode-back" href="../../../api/repositories.html#granite_assets.repositories.local_nginx.LocalNginxAssetRepository.move">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Move (rename) a file on disk."""</span>
+<span class="w">        </span><span class="sd">"""Move (rename) a file on disk.</span>
+
+<span class="sd">        The file keeps its visibility; any copy of *dest_key* under the other</span>
+<span class="sd">        visibility is removed.  Moving a key onto itself is a no-op.</span>
+<span class="sd">        """</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">dest_key</span><span class="p">)</span>
 
         <span class="n">src_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_existing_path</span><span class="p">(</span><span class="n">source_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">source_key</span> <span class="o">==</span> <span class="n">dest_key</span><span class="p">:</span>
+            <span class="k">return</span>
         <span class="n">visibility</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_infer_visibility</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span>
         <span class="n">dest_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">dest_key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">)</span>
+        <span class="n">other</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_full_path</span><span class="p">(</span><span class="n">dest_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_other_visibility</span><span class="p">(</span><span class="n">visibility</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">dest_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="p">(</span><span class="n">dest_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">or</span> <span class="n">other</span><span class="o">.</span><span class="n">exists</span><span class="p">()):</span>
             <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Destination key already exists: </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">create_directories</span><span class="p">:</span>
-            <span class="n">dest_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">src_path</span><span class="p">),</span> <span class="n">dest_path</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_parent</span><span class="p">(</span><span class="n">dest_path</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">src_path</span><span class="p">),</span> <span class="n">dest_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AssetError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Failed to move asset </span><span class="si">{</span><span class="n">source_key</span><span class="si">!r}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">dest_key</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remove_quietly</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">)</span></div>
 
 
     <span class="c1"># ------------------------------------------------------------------</span>
@@ -654,6 +758,7 @@
 <span class="sd">                is not configured.</span>
 <span class="sd">        """</span>
         <span class="n">_assert_no_leading_slash</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">check_content_type</span><span class="p">(</span><span class="n">content_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">allowed_content_types</span><span class="p">)</span>
 
         <span class="c1"># ── PUT-based upload service (transparent with S3 presigned PUT) ─────────</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_service_url</span><span class="p">:</span>
@@ -667,13 +772,23 @@
                 <span class="n">ttl_seconds</span> <span class="k">if</span> <span class="n">ttl_seconds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_ttl_seconds</span>
             <span class="p">)</span>
             <span class="n">expires</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="o">+</span> <span class="n">ttl</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_token_format</span> <span class="o">==</span> <span class="s2">"v2"</span><span class="p">:</span>
+                <span class="n">payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upload_payload</span><span class="p">(</span><span class="n">expires</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">visibility</span><span class="p">,</span> <span class="n">content_type</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">payload</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span>
             <span class="n">mac</span> <span class="o">=</span> <span class="n">hmac</span><span class="o">.</span><span class="n">new</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_secret</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">),</span>
-                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
+                <span class="n">payload</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
                 <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">,</span>
             <span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
             <span class="n">b64key</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">urlsafe_b64encode</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="sa">b</span><span class="s2">"="</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_service_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span><span class="si">}</span><span class="s2">/upload/</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">mac</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">b64key</span><span class="si">}</span><span class="s2">"</span>
+            <span class="n">service</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_service_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">service</span><span class="si">}</span><span class="s2">/upload/</span><span class="si">{</span><span class="n">expires</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">mac</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">b64key</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cfg</span><span class="o">.</span><span class="n">upload_token_format</span> <span class="o">==</span> <span class="s2">"v2"</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlencode</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">"visibility"</span><span class="p">:</span> <span class="n">visibility</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="s2">"content_type"</span><span class="p">:</span> <span class="n">content_type</span><span class="p">}</span>
+                <span class="p">)</span>
+                <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">?</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s2">"</span>
             <span class="k">return</span> <span class="n">UploadUrlResult</span><span class="p">(</span>
                 <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
                 <span class="n">method</span><span class="o">=</span><span class="s2">"PUT"</span><span class="p">,</span>
@@ -780,9 +895,8 @@
 
 
 
-<span class="c1"># Verify structural compatibility at import time (cheap, dev-friendly)</span>
-<span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">LocalNginxAssetRepository</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
-<span class="n">_</span><span class="p">:</span> <span class="n">IAssetRepository</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">LocalNginxAssetRepository</span><span class="p">)</span>
+<span class="c1"># Structural compatibility with the protocol is checked by mypy.</span>
+<span class="n">_</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">IAssetRepository</span><span class="p">]</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span>
 </pre></div>
 
            </div>
