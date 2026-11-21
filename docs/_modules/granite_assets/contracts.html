@@ -86,7 +86,7 @@
            <div itemprop="articleBody">
              
   <h1>Source code for granite_assets.contracts</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Repository contract (Protocol) for granite-assets.</span>
+<span></span><span class="sd">"""Repository contract (Protocol) for granite-assets.</span>
 
 <span class="sd">Defines the ``IAssetRepository`` structural interface.  Any class that</span>
 <span class="sd">implements these methods is considered a valid repository without needing to</span>
@@ -109,7 +109,7 @@
 <span class="sd">  the normal pattern for blocking operations (FastAPI ``run_in_executor``,</span>
 <span class="sd">  Celery tasks, Django views, etc.).  Async variants can be added in a future</span>
 <span class="sd">  minor version without breaking the current API.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
@@ -128,12 +128,12 @@
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository">[docs]</a>
 <span class="nd">@runtime_checkable</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">IAssetRepository</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Structural interface for asset repositories.</span>
+<span class="w">    </span><span class="sd">"""Structural interface for asset repositories.</span>
 
 <span class="sd">    Implementations must provide all methods below.  The ``@runtime_checkable``</span>
 <span class="sd">    decorator allows ``isinstance(repo, IAssetRepository)`` checks at runtime,</span>
 <span class="sd">    which is useful in dependency-injection containers and factory helpers.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="c1"># ------------------------------------------------------------------</span>
     <span class="c1"># Write operations</span>
@@ -142,7 +142,7 @@
 <div class="viewcode-block" id="IAssetRepository.save">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.save">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">AssetSaveRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetSaveResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist an asset to the backend.</span>
+<span class="w">        </span><span class="sd">"""Persist an asset to the backend.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            request: Fully described save request including stream, key,</span>
@@ -153,28 +153,28 @@
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetError: If writing fails (I/O error, permission, etc.).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
 <div class="viewcode-block" id="IAssetRepository.delete">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.delete">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove an asset from the backend.</span>
+<span class="w">        </span><span class="sd">"""Remove an asset from the backend.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            key: Logical key of the asset to remove.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetNotFoundError: If the key does not exist.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
 <div class="viewcode-block" id="IAssetRepository.copy">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.copy">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy an asset to a new key without downloading it.</span>
+<span class="w">        </span><span class="sd">"""Copy an asset to a new key without downloading it.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            source_key: Key of the asset to copy.</span>
@@ -183,14 +183,14 @@
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetNotFoundError: If *source_key* does not exist.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
 <div class="viewcode-block" id="IAssetRepository.move">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.move">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Move (rename) an asset.</span>
+<span class="w">        </span><span class="sd">"""Move (rename) an asset.</span>
 
 <span class="sd">        Equivalent to ``copy`` followed by ``delete`` on the source.</span>
 
@@ -201,7 +201,7 @@
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetNotFoundError: If *source_key* does not exist.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
@@ -212,18 +212,18 @@
 <div class="viewcode-block" id="IAssetRepository.exists">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.exists">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return ``True`` if the asset exists in the backend.</span>
+<span class="w">        </span><span class="sd">"""Return ``True`` if the asset exists in the backend.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            key: Logical key to check.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
 <div class="viewcode-block" id="IAssetRepository.get_descriptor">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.get_descriptor">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_descriptor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetDescriptor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve metadata for an existing asset without downloading it.</span>
+<span class="w">        </span><span class="sd">"""Retrieve metadata for an existing asset without downloading it.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            key: Logical key of the asset.</span>
@@ -233,7 +233,7 @@
 
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetNotFoundError: If the key does not exist.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
@@ -244,7 +244,7 @@
 <div class="viewcode-block" id="IAssetRepository.build_public_url">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository.build_public_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a permanent, publicly accessible URL for the asset.</span>
+<span class="w">        </span><span class="sd">"""Return a permanent, publicly accessible URL for the asset.</span>
 
 <span class="sd">        Only valid for assets stored with ``AssetVisibility.PUBLIC``.</span>
 
@@ -257,7 +257,7 @@
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetAccessNotSupportedError: If the backend or asset visibility does</span>
 <span class="sd">                not support public URLs.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
@@ -266,7 +266,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">build_download_url</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a time-limited URL suitable for downloading the asset.</span>
+<span class="w">        </span><span class="sd">"""Return a time-limited URL suitable for downloading the asset.</span>
 
 <span class="sd">        For public assets this may return the same permanent URL.  For private</span>
 <span class="sd">        assets it returns a signed URL that expires after *ttl_seconds*.</span>
@@ -281,7 +281,7 @@
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetAccessNotSupportedError: If signed download URLs are not</span>
 <span class="sd">                supported by this backend.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
@@ -293,7 +293,7 @@
         <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadUrlResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a pre-signed URL that allows a client to upload an asset.</span>
+<span class="w">        </span><span class="sd">"""Return a pre-signed URL that allows a client to upload an asset.</span>
 
 <span class="sd">        The client should send the file as the body of an HTTP PUT request to</span>
 <span class="sd">        the returned URL, including the headers specified in</span>
@@ -310,7 +310,7 @@
 <span class="sd">        Raises:</span>
 <span class="sd">            AssetAccessNotSupportedError: If pre-signed upload URLs are not</span>
 <span class="sd">                supported by this backend (e.g. local filesystem).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 
 
@@ -319,7 +319,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">resolve_access</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenience helper that returns the best available URL for the asset.</span>
+<span class="w">        </span><span class="sd">"""Convenience helper that returns the best available URL for the asset.</span>
 
 <span class="sd">        For public assets returns the permanent public URL; for private assets</span>
 <span class="sd">        returns a signed download URL.</span>
@@ -330,7 +330,7 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            The most appropriate :class:`AssetAccessUrl` for this asset.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="o">...</span></div>
 </div>
 

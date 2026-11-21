@@ -148,8 +148,8 @@ through their own application layer.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">secret</span></code>    — Shared secret string (<code class="docutils literal notranslate"><span class="pre">secure_link_secret</span></code>).</p></li>
 </ul>
 <p>The token is computed as:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">raw</span>   <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">expires</span><span class="si">}{</span><span class="n">uri</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">secret</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
-<span class="n">token</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">urlsafe_b64encode</span><span class="p">(</span><span class="n">md5</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">())</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;=&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">raw</span>   <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">expires</span><span class="si">}{</span><span class="n">uri</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">secret</span><span class="si">}</span><span class="s2">"</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span>
+<span class="n">token</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">urlsafe_b64encode</span><span class="p">(</span><span class="n">md5</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">())</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="sa">b</span><span class="s2">"="</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
 </pre></div>
 </div>
 <p>The resulting URL is:</p>
@@ -158,7 +158,7 @@ through their own application layer.</p></li>
 </div>
 <p>The Nginx directive that validates this token is:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>secure_link $arg_md5,$arg_expires;
-secure_link_md5 &quot;$secure_link_expires$uri YOUR_SECRET_HERE&quot;;
+secure_link_md5 "$secure_link_expires$uri YOUR_SECRET_HERE";
 </pre></div>
 </div>
 </section>
@@ -176,8 +176,8 @@ secure_link_md5 &quot;$secure_link_expires$uri YOUR_SECRET_HERE&quot;;
 and the logical key.</p>
 <p>Example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
-    <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/var/www/assets&quot;</span><span class="p">,</span>
-    <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com/assets&quot;</span><span class="p">,</span>
+    <span class="n">storage_path</span><span class="o">=</span><span class="s2">"/var/www/assets"</span><span class="p">,</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://cdn.example.com/assets"</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </pre></div>
@@ -385,9 +385,9 @@ externally.</p></li>
 <p>Instantiation is cheap; the boto3 session is created once and reused.</p>
 <p>Example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
-    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-assets&quot;</span><span class="p">,</span>
-    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
-    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com&quot;</span><span class="p">,</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">"my-assets"</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">"eu-west-1"</span><span class="p">,</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">"https://cdn.example.com"</span><span class="p">,</span>
     <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">S3AssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
@@ -523,8 +523,8 @@ files that the player fetches from relative paths.</p>
 <span class="c1">#   assets/&lt;uuid&gt;/1080p/seg000.ts  … seg009.ts</span>
 
 <span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_folder_signed_url</span><span class="p">(</span>
-    <span class="s2">&quot;assets/&lt;uuid&gt;/&lt;uuid&gt;.mp4&quot;</span><span class="p">,</span>
-    <span class="n">entry_filename</span><span class="o">=</span><span class="s2">&quot;master.m3u8&quot;</span><span class="p">,</span>
+    <span class="s2">"assets/&lt;uuid&gt;/&lt;uuid&gt;.mp4"</span><span class="p">,</span>
+    <span class="n">entry_filename</span><span class="o">=</span><span class="s2">"master.m3u8"</span><span class="p">,</span>
     <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">7200</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="c1"># Returns:</span>
@@ -601,8 +601,8 @@ Example: <code class="docutils literal notranslate"><span class="pre">&quot;priv
 header set to exactly the value provided here.  No other headers are
 required by default.</p>
 <p>Example (using <code class="docutils literal notranslate"><span class="pre">requests</span></code>):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span><span class="s2">&quot;images/photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;image/jpeg&quot;</span><span class="p">)</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span><span class="s2">"images/photo.jpg"</span><span class="p">,</span> <span class="s2">"image/jpeg"</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"photo.jpg"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">requests</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
 </pre></div>
 </div>

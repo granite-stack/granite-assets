@@ -111,55 +111,55 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.</p>
 
 <span class="c1"># 1. Configure the repository.</span>
 <span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
-    <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/var/www/assets&quot;</span><span class="p">,</span>      <span class="c1"># absolute path on disk</span>
-    <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com/assets&quot;</span><span class="p">,</span>  <span class="c1"># how Nginx serves it</span>
-    <span class="n">public_prefix</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span>             <span class="c1"># default; public files go here</span>
-    <span class="n">private_prefix</span><span class="o">=</span><span class="s2">&quot;private&quot;</span><span class="p">,</span>           <span class="c1"># private files (Nginx-protected)</span>
+    <span class="n">storage_path</span><span class="o">=</span><span class="s2">"/var/www/assets"</span><span class="p">,</span>      <span class="c1"># absolute path on disk</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://cdn.example.com/assets"</span><span class="p">,</span>  <span class="c1"># how Nginx serves it</span>
+    <span class="n">public_prefix</span><span class="o">=</span><span class="s2">"public"</span><span class="p">,</span>             <span class="c1"># default; public files go here</span>
+    <span class="n">private_prefix</span><span class="o">=</span><span class="s2">"private"</span><span class="p">,</span>           <span class="c1"># private files (Nginx-protected)</span>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
 <span class="c1"># 2. Save an asset — explicit key.</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"photo.jpg"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
-        <span class="n">key</span><span class="o">=</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">,</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"avatars/user-42.jpg"</span><span class="p">,</span>
         <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">"image/jpeg"</span><span class="p">,</span>
         <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
-        <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s2">"photo.jpg"</span><span class="p">,</span>
     <span class="p">))</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>            <span class="c1"># avatars/user-42.jpg</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">content_length</span><span class="p">)</span> <span class="c1"># bytes written</span>
 
 <span class="c1"># Auto-generated key — omit ``key``; granite-assets creates</span>
 <span class="c1"># ``{uuid}/{uuid}.jpg`` automatically.</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"photo.jpg"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
         <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">"image/jpeg"</span><span class="p">,</span>
         <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
-        <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s2">"photo.jpg"</span><span class="p">,</span>
     <span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># e.g. &quot;a1b2c3d4-.../&lt;same-uuid&gt;.jpg&quot;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># e.g. "a1b2c3d4-.../&lt;same-uuid&gt;.jpg"</span>
 
 <span class="c1"># 3. Build a public URL.</span>
-<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">"avatars/user-42.jpg"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>   <span class="c1"># https://cdn.example.com/assets/public/avatars/user-42.jpg</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">is_permanent</span><span class="p">)</span>  <span class="c1"># True</span>
 
 <span class="c1"># 4. Check existence.</span>
-<span class="k">assert</span> <span class="n">repo</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">repo</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">"avatars/user-42.jpg"</span><span class="p">)</span>
 
 <span class="c1"># 5. Get metadata (no download).</span>
-<span class="n">descriptor</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">get_descriptor</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="n">descriptor</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">get_descriptor</span><span class="p">(</span><span class="s2">"avatars/user-42.jpg"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">descriptor</span><span class="o">.</span><span class="n">content_length</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">descriptor</span><span class="o">.</span><span class="n">last_modified</span><span class="p">)</span>
 
 <span class="c1"># 6. Copy and move.</span>
-<span class="n">repo</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;avatars/backup/user-42.jpg&quot;</span><span class="p">)</span>
-<span class="n">repo</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="s2">&quot;avatars/backup/user-42.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;archive/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="s2">"avatars/user-42.jpg"</span><span class="p">,</span> <span class="s2">"avatars/backup/user-42.jpg"</span><span class="p">)</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="s2">"avatars/backup/user-42.jpg"</span><span class="p">,</span> <span class="s2">"archive/user-42.jpg"</span><span class="p">)</span>
 
 <span class="c1"># 7. Delete.</span>
-<span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">)</span>
+<span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">"avatars/user-42.jpg"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -174,49 +174,49 @@ server (Nginx, Apache, Caddy …) serves files directly from disk.</p>
 <span class="p">)</span>
 
 <span class="n">config</span> <span class="o">=</span> <span class="n">S3AssetRepositoryConfig</span><span class="p">(</span>
-    <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my-app-assets&quot;</span><span class="p">,</span>
-    <span class="n">region</span><span class="o">=</span><span class="s2">&quot;eu-west-1&quot;</span><span class="p">,</span>
-    <span class="n">key_prefix</span><span class="o">=</span><span class="s2">&quot;production/&quot;</span><span class="p">,</span>           <span class="c1"># optional prefix inside the bucket</span>
-    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com&quot;</span><span class="p">,</span>  <span class="c1"># CDN in front of the bucket</span>
+    <span class="n">bucket</span><span class="o">=</span><span class="s2">"my-app-assets"</span><span class="p">,</span>
+    <span class="n">region</span><span class="o">=</span><span class="s2">"eu-west-1"</span><span class="p">,</span>
+    <span class="n">key_prefix</span><span class="o">=</span><span class="s2">"production/"</span><span class="p">,</span>           <span class="c1"># optional prefix inside the bucket</span>
+    <span class="n">public_base_url</span><span class="o">=</span><span class="s2">"https://cdn.example.com"</span><span class="p">,</span>  <span class="c1"># CDN in front of the bucket</span>
     <span class="n">presign_ttl_seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>           <span class="c1"># default TTL for signed URLs</span>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>   <span class="c1"># returns S3AssetRepository</span>
 
 <span class="c1"># Save a public asset — explicit key.</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;banner.png&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"banner.png"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
-        <span class="n">key</span><span class="o">=</span><span class="s2">&quot;banners/homepage.png&quot;</span><span class="p">,</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"banners/homepage.png"</span><span class="p">,</span>
         <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/png&quot;</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">"image/png"</span><span class="p">,</span>
         <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
     <span class="p">))</span>
 
 <span class="c1"># Save with auto-generated key (recommended for user uploads).</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;invoice.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"invoice.pdf"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
         <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/pdf&quot;</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">"application/pdf"</span><span class="p">,</span>
         <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
-        <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;invoice.pdf&quot;</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s2">"invoice.pdf"</span><span class="p">,</span>
     <span class="p">))</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
-<span class="c1"># e.g. &quot;3b105bc5-6056-4a52-b03b-7d953644c826/3b105bc5-....pdf&quot;</span>
+<span class="c1"># e.g. "3b105bc5-6056-4a52-b03b-7d953644c826/3b105bc5-....pdf"</span>
 
 <span class="c1"># Permanent public URL (via CDN).</span>
-<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">&quot;banners/homepage.png&quot;</span><span class="p">)</span>
+<span class="n">url</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_public_url</span><span class="p">(</span><span class="s2">"banners/homepage.png"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>   <span class="c1"># https://cdn.example.com/banners/homepage.png</span>
 
 <span class="c1"># Save a private asset.</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;invoice.pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"invoice.pdf"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">AssetSaveRequest</span><span class="p">(</span>
-        <span class="n">key</span><span class="o">=</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"invoices/inv-001.pdf"</span><span class="p">,</span>
         <span class="n">source</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-        <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;application/pdf&quot;</span><span class="p">,</span>
+        <span class="n">content_type</span><span class="o">=</span><span class="s2">"application/pdf"</span><span class="p">,</span>
         <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PRIVATE</span><span class="p">,</span>
     <span class="p">))</span>
 
 <span class="c1"># Time-limited download URL.</span>
-<span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">&quot;invoices/inv-001.pdf&quot;</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+<span class="n">dl</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">build_download_url</span><span class="p">(</span><span class="s2">"invoices/inv-001.pdf"</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>        <span class="c1"># https://... (presigned S3 URL)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">dl</span><span class="o">.</span><span class="n">expires_at</span><span class="p">)</span> <span class="c1"># UTC datetime 5 minutes from now</span>
 </pre></div>
@@ -231,8 +231,8 @@ repository.  This is useful in dependency-injection setups:</p>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_repo</span><span class="p">():</span>
     <span class="c1"># In production, read from environment / settings</span>
     <span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
-        <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/var/www/assets&quot;</span><span class="p">,</span>
-        <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost/assets&quot;</span><span class="p">,</span>
+        <span class="n">storage_path</span><span class="o">=</span><span class="s2">"/var/www/assets"</span><span class="p">,</span>
+        <span class="n">base_url</span><span class="o">=</span><span class="s2">"http://localhost/assets"</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="n">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 </pre></div>
@@ -247,14 +247,14 @@ repository.  This is useful in dependency-injection setups:</p>
 <span class="p">)</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;missing-key.jpg&quot;</span><span class="p">)</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">"missing-key.jpg"</span><span class="p">)</span>
 <span class="k">except</span> <span class="n">AssetNotFoundError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Key not found: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Key not found: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span><span class="s2">&quot;some/key.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;image/jpeg&quot;</span><span class="p">)</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">build_upload_url</span><span class="p">(</span><span class="s2">"some/key.jpg"</span><span class="p">,</span> <span class="s2">"image/jpeg"</span><span class="p">)</span>
 <span class="k">except</span> <span class="n">AssetAccessNotSupportedError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">backend</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">operation</span><span class="si">}</span><span class="s2"> not supported&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">backend</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">operation</span><span class="si">}</span><span class="s2"> not supported"</span><span class="p">)</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">bad_request</span><span class="p">)</span>

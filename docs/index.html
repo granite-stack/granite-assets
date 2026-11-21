@@ -130,15 +130,15 @@ so you can swap storage backends without touching application code.</p>
 <span class="p">)</span>
 
 <span class="n">config</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">(</span>
-    <span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;/var/www/assets&quot;</span><span class="p">,</span>
-    <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;https://cdn.example.com/assets&quot;</span><span class="p">,</span>
+    <span class="n">storage_path</span><span class="o">=</span><span class="s2">"/var/www/assets"</span><span class="p">,</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://cdn.example.com/assets"</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">repo</span> <span class="o">=</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
 <span class="n">request</span> <span class="o">=</span> <span class="n">AssetSaveRequest</span><span class="p">(</span>
-    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;avatars/user-42.jpg&quot;</span><span class="p">,</span>
-    <span class="n">source</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;photo.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">),</span>
-    <span class="n">content_type</span><span class="o">=</span><span class="s2">&quot;image/jpeg&quot;</span><span class="p">,</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">"avatars/user-42.jpg"</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s2">"photo.jpg"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">),</span>
+    <span class="n">content_type</span><span class="o">=</span><span class="s2">"image/jpeg"</span><span class="p">,</span>
     <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>

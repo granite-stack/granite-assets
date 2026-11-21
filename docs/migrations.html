@@ -132,10 +132,10 @@ deployment.</p>
 <p>The migration helpers require <code class="docutils literal notranslate"><span class="pre">alembic</span></code> and <code class="docutils literal notranslate"><span class="pre">sqlalchemy</span></code>, which are
 <strong>not</strong> included in the default install to keep the footprint small.
 Install the <code class="docutils literal notranslate"><span class="pre">db</span></code> optional extra:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">&quot;granite-assets[db]&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">"granite-assets[db]"</span>
 
 <span class="c1"># or with uv:</span>
-<span class="n">uv</span> <span class="n">add</span> <span class="s2">&quot;granite-assets[db]&quot;</span>
+<span class="n">uv</span> <span class="n">add</span> <span class="s2">"granite-assets[db]"</span>
 </pre></div>
 </div>
 </section>
@@ -145,13 +145,13 @@ Install the <code class="docutils literal notranslate"><span class="pre">db</spa
 
 <span class="c1"># Pass a *synchronous* SQLAlchemy URL.</span>
 <span class="c1"># Async drivers (asyncpg, aiosqlite) must be converted first — see below.</span>
-<span class="n">upgrade_to_head</span><span class="p">(</span><span class="s2">&quot;postgresql+psycopg2://user:pass@localhost/mydb&quot;</span><span class="p">)</span>
+<span class="n">upgrade_to_head</span><span class="p">(</span><span class="s2">"postgresql+psycopg2://user:pass@localhost/mydb"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>If your application uses an async driver (e.g. <code class="docutils literal notranslate"><span class="pre">asyncpg</span></code>), replace the
 scheme before passing it to <code class="docutils literal notranslate"><span class="pre">upgrade_to_head()</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db_url</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">db_url</span>  <span class="c1"># &quot;postgresql+asyncpg://...&quot;</span>
-<span class="n">sync_url</span> <span class="o">=</span> <span class="n">db_url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;postgresql+asyncpg://&quot;</span><span class="p">,</span> <span class="s2">&quot;postgresql+psycopg2://&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db_url</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">db_url</span>  <span class="c1"># "postgresql+asyncpg://..."</span>
+<span class="n">sync_url</span> <span class="o">=</span> <span class="n">db_url</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"postgresql+asyncpg://"</span><span class="p">,</span> <span class="s2">"postgresql+psycopg2://"</span><span class="p">)</span>
 <span class="n">upgrade_to_head</span><span class="p">(</span><span class="n">sync_url</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -171,8 +171,8 @@ to granite-assets tables are satisfied when the host schema is applied.</p>
     <span class="n">upgrade_to_head</span><span class="p">(</span><span class="n">sync_url</span><span class="p">)</span>
 
     <span class="c1"># 2. host application schema second</span>
-    <span class="n">cfg</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span><span class="s2">&quot;alembic.ini&quot;</span><span class="p">)</span>
-    <span class="n">command</span><span class="o">.</span><span class="n">upgrade</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;head&quot;</span><span class="p">)</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span><span class="s2">"alembic.ini"</span><span class="p">)</span>
+    <span class="n">command</span><span class="o">.</span><span class="n">upgrade</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">"head"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Then wire it in your <code class="docutils literal notranslate"><span class="pre">Makefile</span></code>:</p>
@@ -187,11 +187,11 @@ to granite-assets tables are satisfied when the host schema is applied.</p>
 file inside the bundled alembic directory:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/path/to/granite-assets
 uv<span class="w"> </span>run<span class="w"> </span>alembic<span class="w"> </span>--config<span class="w"> </span>src/granite_assets/alembic/alembic.ini<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>revision<span class="w"> </span>--autogenerate<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;add asset metadata table&quot;</span>
+<span class="w">    </span>revision<span class="w"> </span>--autogenerate<span class="w"> </span>-m<span class="w"> </span><span class="s2">"add asset metadata table"</span>
 </pre></div>
 </div>
 <p>Or, if you have a convenience wrapper in <code class="docutils literal notranslate"><span class="pre">makefile</span></code>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">migrate</span><span class="o">-</span><span class="n">create</span> <span class="n">MSG</span><span class="o">=</span><span class="s2">&quot;add asset metadata table&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">migrate</span><span class="o">-</span><span class="n">create</span> <span class="n">MSG</span><span class="o">=</span><span class="s2">"add asset metadata table"</span>
 </pre></div>
 </div>
 <p>The generated file lands in

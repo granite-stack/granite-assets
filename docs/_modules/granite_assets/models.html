@@ -86,12 +86,12 @@
            <div itemprop="articleBody">
              
   <h1>Source code for granite_assets.models</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Domain models and configuration dataclasses for granite-assets.</span>
+<span></span><span class="sd">"""Domain models and configuration dataclasses for granite-assets.</span>
 
 <span class="sd">All models use ``slots=True`` for memory efficiency and to prevent accidental</span>
 <span class="sd">attribute creation. ``frozen=True`` is applied to value objects that should</span>
 <span class="sd">be immutable after construction; mutable builder-style objects stay unfrozen.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
@@ -111,13 +111,13 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.AssetSaveRequest">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetSaveRequest</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;All the information needed to persist a new asset.</span>
+<span class="w">    </span><span class="sd">"""All the information needed to persist a new asset.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        source:       Readable binary stream with the asset content.</span>
-<span class="sd">        content_type: MIME type (e.g. ``&quot;application/pdf&quot;``).</span>
+<span class="sd">        content_type: MIME type (e.g. ``"application/pdf"``).</span>
 <span class="sd">        key:          Logical key that uniquely identifies the asset within the</span>
-<span class="sd">                      repository (e.g. ``&quot;invoices/2024/inv-001.pdf&quot;``).  It must</span>
+<span class="sd">                      repository (e.g. ``"invoices/2024/inv-001.pdf"``).  It must</span>
 <span class="sd">                      not contain a leading slash.  When *None* (default) the</span>
 <span class="sd">                      repository auto-generates a namespaced key of the form</span>
 <span class="sd">                      ``&lt;uuid&gt;/&lt;uuid&gt;.&lt;ext&gt;``, where the extension is derived</span>
@@ -129,13 +129,13 @@
 <span class="sd">                      extension for the auto-generated key).</span>
 <span class="sd">        content_length: Byte size of the asset when known; used to set</span>
 <span class="sd">                      ``Content-Length`` headers on upload.</span>
-<span class="sd">        checksum:     Optional integrity hash (e.g. ``&quot;md5:abc123&quot;``).</span>
+<span class="sd">        checksum:     Optional integrity hash (e.g. ``"md5:abc123"``).</span>
 <span class="sd">        metadata:     Arbitrary key/value pairs forwarded to the backend (e.g.</span>
 <span class="sd">                      S3 object metadata or extended file attributes).</span>
 <span class="sd">        overwrite:    If *False* and the key already exists the backend should</span>
 <span class="sd">                      raise ``AssetError``.  Implementations may expose a</span>
 <span class="sd">                      per-request override even when the global config differs.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">source</span><span class="p">:</span> <span class="n">BinaryIO</span> <span class="o">|</span> <span class="nb">bytes</span>
     <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span>
@@ -150,8 +150,8 @@
 <div class="viewcode-block" id="AssetSaveRequest.open_source">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.AssetSaveRequest.open_source">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">open_source</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BinaryIO</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a readable binary stream regardless of whether *source* is</span>
-<span class="sd">        already a stream or a raw ``bytes`` object.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Return a readable binary stream regardless of whether *source* is</span>
+<span class="sd">        already a stream or a raw ``bytes`` object."""</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span></div>
@@ -168,7 +168,7 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.AssetSaveResult">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetSaveResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returned by :meth:`IAssetRepository.save` after a successful write.</span>
+<span class="w">    </span><span class="sd">"""Returned by :meth:`IAssetRepository.save` after a successful write.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        key:            The logical key under which the asset was stored.</span>
@@ -176,7 +176,7 @@
 <span class="sd">        content_length: Byte size as recorded by the backend.</span>
 <span class="sd">        checksum:       Integrity hash as returned or calculated by the backend.</span>
 <span class="sd">        visibility:     Visibility at the time of saving.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">backend_ref</span><span class="p">:</span> <span class="nb">str</span>
@@ -190,7 +190,7 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.AssetDescriptor">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetDescriptor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Metadata about an asset that already exists in the repository.</span>
+<span class="w">    </span><span class="sd">"""Metadata about an asset that already exists in the repository.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        key:            Logical key.</span>
@@ -200,7 +200,7 @@
 <span class="sd">        last_modified:  Last modification timestamp (backend-provided).</span>
 <span class="sd">        checksum:       Integrity hash when available.</span>
 <span class="sd">        metadata:       Backend-provided key/value metadata.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">content_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -216,19 +216,19 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.AssetAccessUrl">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetAccessUrl</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A resolved URL for accessing an asset.</span>
+<span class="w">    </span><span class="sd">"""A resolved URL for accessing an asset.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        url:        The full URL string.</span>
 <span class="sd">        expires_at: Expiry timestamp for signed URLs; *None* for permanent URLs.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">expires_at</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_permanent</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;``True`` when the URL has no expiry (i.e. public permanent URL).&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""``True`` when the URL has no expiry (i.e. public permanent URL)."""</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">expires_at</span> <span class="ow">is</span> <span class="kc">None</span></div>
 
 
@@ -237,7 +237,7 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.UploadUrlResult">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">UploadUrlResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a pre-signed or tus upload URL request.</span>
+<span class="w">    </span><span class="sd">"""Result of a pre-signed or tus upload URL request.</span>
 
 <span class="sd">    Backends may use different upload protocols:</span>
 
@@ -250,12 +250,12 @@
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        url:         The URL the client should target for the first request.</span>
-<span class="sd">        method:      HTTP method for the first request (``&quot;PUT&quot;`` for S3,</span>
-<span class="sd">                     ``&quot;POST&quot;`` for tus).</span>
+<span class="sd">        method:      HTTP method for the first request (``"PUT"`` for S3,</span>
+<span class="sd">                     ``"POST"`` for tus).</span>
 <span class="sd">        headers:     Headers that the client *must* include in the request.</span>
 <span class="sd">        expires_at:  When the upload authorisation token expires.</span>
 <span class="sd">        key:         The logical key that will be created after a successful upload.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">method</span><span class="p">:</span> <span class="nb">str</span>
@@ -269,7 +269,7 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.CfSignedCookies">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">CfSignedCookies</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;CloudFront signed-cookie values to be set on the response.</span>
+<span class="w">    </span><span class="sd">"""CloudFront signed-cookie values to be set on the response.</span>
 
 <span class="sd">    All three cookies are required by CloudFront.  Set them with</span>
 <span class="sd">    ``HttpOnly; Secure; SameSite=None`` so the browser sends them on</span>
@@ -280,7 +280,7 @@
 <span class="sd">        signature:    RSA-SHA1 signature of the policy (``CloudFront-Signature``).</span>
 <span class="sd">        key_pair_id:  CloudFront key-pair ID (``CloudFront-Key-Pair-Id``).</span>
 <span class="sd">        expires_at:   When the authorisation expires.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">policy</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">signature</span><span class="p">:</span> <span class="nb">str</span>
@@ -290,11 +290,11 @@
 <div class="viewcode-block" id="CfSignedCookies.as_cookie_header_values">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.CfSignedCookies.as_cookie_header_values">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">as_cookie_header_values</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a mapping of cookie name → value ready for ``Set-Cookie``.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Return a mapping of cookie name → value ready for ``Set-Cookie``."""</span>
         <span class="k">return</span> <span class="p">{</span>
-            <span class="s2">&quot;CloudFront-Policy&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">policy</span><span class="p">,</span>
-            <span class="s2">&quot;CloudFront-Signature&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span>
-            <span class="s2">&quot;CloudFront-Key-Pair-Id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_pair_id</span><span class="p">,</span>
+            <span class="s2">"CloudFront-Policy"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">policy</span><span class="p">,</span>
+            <span class="s2">"CloudFront-Signature"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="p">,</span>
+            <span class="s2">"CloudFront-Key-Pair-Id"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_pair_id</span><span class="p">,</span>
         <span class="p">}</span></div>
 </div>
 
@@ -304,23 +304,23 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.LocalNginxAssetRepositoryConfig">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">LocalNginxAssetRepositoryConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for :class:`LocalNginxAssetRepository`.</span>
+<span class="w">    </span><span class="sd">"""Configuration for :class:`LocalNginxAssetRepository`.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        storage_path:       Absolute path on disk where assets are written.</span>
 <span class="sd">        base_url:           Root URL at which Nginx (or any static server) serves</span>
 <span class="sd">                            the ``storage_path`` directory.  Example::</span>
 
-<span class="sd">                                &quot;http://localhost:8080/assets&quot;</span>
+<span class="sd">                                "http://localhost:8080/assets"</span>
 
 <span class="sd">        public_prefix:      Sub-directory name (and URL path segment) used for</span>
-<span class="sd">                            publicly accessible assets.  Default: ``&quot;public&quot;``.</span>
+<span class="sd">                            publicly accessible assets.  Default: ``"public"``.</span>
 <span class="sd">                            Files are placed at</span>
 <span class="sd">                            ``{storage_path}/{public_prefix}/{key}`` and served</span>
 <span class="sd">                            at ``{base_url}/{public_prefix}/{key}``.</span>
 
 <span class="sd">        private_prefix:     Sub-directory name for private assets.</span>
-<span class="sd">                            Default: ``&quot;private&quot;``.  Files are placed at</span>
+<span class="sd">                            Default: ``"private"``.  Files are placed at</span>
 <span class="sd">                            ``{storage_path}/{private_prefix}/{key}`` and are</span>
 <span class="sd">                            only served when Nginx signed-URL validation passes</span>
 <span class="sd">                            (requires ``secure_link_secret`` to be set) or when</span>
@@ -345,7 +345,7 @@
 <span class="sd">                            The secret must match the value configured in the</span>
 <span class="sd">                            Nginx directive::</span>
 
-<span class="sd">                                secure_link_md5 &quot;$secure_link_expires$uri SECRET&quot;;</span>
+<span class="sd">                                secure_link_md5 "$secure_link_expires$uri SECRET";</span>
 
 <span class="sd">                            **Keep this value secret.**  Anyone who knows it can</span>
 <span class="sd">                            forge download tokens.  Use an environment variable</span>
@@ -363,12 +363,12 @@
 
 <span class="sd">        tusd_url:           Base URL of the `tusd &lt;https://github.com/tus/tusd&gt;`_</span>
 <span class="sd">                            server used to receive file uploads (e.g.</span>
-<span class="sd">                            ``&quot;http://localhost:1080&quot;``).  When set,</span>
+<span class="sd">                            ``"http://localhost:1080"``).  When set,</span>
 <span class="sd">                            :meth:`build_upload_url` generates a tus creation</span>
 <span class="sd">                            request targeting ``{tusd_url}/files/``.</span>
 
 <span class="sd">                            tusd must be configured to call back to your</span>
-<span class="sd">                            application&#39;s hook endpoint so it can:</span>
+<span class="sd">                            application's hook endpoint so it can:</span>
 
 <span class="sd">                            1. Validate the ``upload-token`` in the upload</span>
 <span class="sd">                               metadata (*pre-create* hook).</span>
@@ -395,25 +395,25 @@
 <span class="sd">                            :meth:`build_upload_url` can override this value.</span>
 
 <span class="sd">        upload_service_url: Base URL of a simple PUT-based upload service</span>
-<span class="sd">                            (e.g. ``&quot;http://localhost:1080&quot;``).  When set,</span>
-<span class="sd">                            :meth:`build_upload_url` returns ``method=&quot;PUT&quot;``</span>
+<span class="sd">                            (e.g. ``"http://localhost:1080"``).  When set,</span>
+<span class="sd">                            :meth:`build_upload_url` returns ``method="PUT"``</span>
 <span class="sd">                            and a URL of the form</span>
 <span class="sd">                            ``{upload_service_url}/upload/{expires}/{token}/{b64key}``</span>
 <span class="sd">                            instead of a tus POST URL.  This makes the upload</span>
 <span class="sd">                            protocol transparent to the frontend across S3 and</span>
 <span class="sd">                            local backends.</span>
 
-<span class="sd">                            The token is ``HMAC-SHA256(f&quot;{expires}:{key}&quot;,</span>
+<span class="sd">                            The token is ``HMAC-SHA256(f"{expires}:{key}",</span>
 <span class="sd">                            upload_secret).hexdigest()``.</span>
 
 <span class="sd">                            When *None* (default), falls back to the tusd flow</span>
 <span class="sd">                            if ``tusd_url`` is configured.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">storage_path</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">base_url</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">public_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span>
-    <span class="n">private_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;private&quot;</span>
+    <span class="n">public_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"public"</span>
+    <span class="n">private_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"private"</span>
     <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">create_directories</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">secure_link_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -429,43 +429,43 @@
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">S3AssetRepositoryConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for :class:`S3AssetRepository`.</span>
+<span class="w">    </span><span class="sd">"""Configuration for :class:`S3AssetRepository`.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        bucket:           S3 bucket name.</span>
-<span class="sd">        region:           AWS region (e.g. ``&quot;eu-west-1&quot;``).</span>
+<span class="sd">        region:           AWS region (e.g. ``"eu-west-1"``).</span>
 <span class="sd">        public_base_url:  Optional CDN or custom-domain base URL for public assets.</span>
 <span class="sd">                          When set, ``build_public_url`` will use it instead of the</span>
 <span class="sd">                          native S3 endpoint.</span>
 <span class="sd">        key_prefix:       Optional prefix prepended to every logical key before</span>
-<span class="sd">                          writing to S3 (e.g. ``&quot;uploads/&quot;``).</span>
+<span class="sd">                          writing to S3 (e.g. ``"uploads/"``).</span>
 <span class="sd">        presign_ttl_seconds: Default TTL for presigned URLs.</span>
 <span class="sd">        endpoint_url:     Custom endpoint for S3-compatible stores (MinIO, etc.).</span>
 <span class="sd">        access_key_id:    Explicit AWS credentials (optional; falls back to the</span>
 <span class="sd">                          standard boto3 credential chain).</span>
 <span class="sd">        secret_access_key: Explicit AWS credentials.</span>
 <span class="sd">        session_token:    STS session token when using temporary credentials.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">bucket</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">region</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">public_base_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">key_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">key_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span>
     <span class="n">presign_ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span>
     <span class="n">endpoint_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">access_key_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">secret_access_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">session_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">cf_key_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;CloudFront key-pair ID (``KXXXXXXXXXXXXX``). When set together with</span>
+<span class="w">    </span><span class="sd">"""CloudFront key-pair ID (``KXXXXXXXXXXXXX``). When set together with</span>
 <span class="sd">    ``cf_private_key``, :meth:`build_download_url` generates a CloudFront</span>
-<span class="sd">    signed URL instead of an S3 presigned URL.&quot;&quot;&quot;</span>
+<span class="sd">    signed URL instead of an S3 presigned URL."""</span>
     <span class="n">cf_private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;PEM-encoded RSA private key matching ``cf_key_id``. May be the raw PEM</span>
+<span class="w">    </span><span class="sd">"""PEM-encoded RSA private key matching ``cf_key_id``. May be the raw PEM</span>
 <span class="sd">    string (``-----BEGIN RSA PRIVATE KEY-----\\n...``) or a path to a file</span>
-<span class="sd">    (not recommended; prefer injecting the value from a secret manager).&quot;&quot;&quot;</span>
+<span class="sd">    (not recommended; prefer injecting the value from a secret manager)."""</span>
     <span class="n">cf_unsigned_urls</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;When ``True`` **and** ``public_base_url`` is set, :meth:`build_download_url`</span>
+<span class="w">    </span><span class="sd">"""When ``True`` **and** ``public_base_url`` is set, :meth:`build_download_url`</span>
 <span class="sd">    returns a plain CloudFront URL (no signature, no expiry) instead of an S3</span>
 <span class="sd">    presigned URL.  Use this when the CloudFront distribution has no *Restrict</span>
 <span class="sd">    Viewer Access* policy and the bucket is only accessible via CloudFront OAC.</span>
@@ -476,9 +476,9 @@
 <span class="sd">    and ``cf_private_key`` instead.</span>
 
 <span class="sd">    ``has_cf_signing()`` takes precedence: if both signing keys and this flag</span>
-<span class="sd">    are set, CloudFront signed URLs are used.&quot;&quot;&quot;</span>
+<span class="sd">    are set, CloudFront signed URLs are used."""</span>
     <span class="n">cf_signing_method</span><span class="p">:</span> <span class="n">CfSigningMethod</span> <span class="o">=</span> <span class="n">CfSigningMethod</span><span class="o">.</span><span class="n">URL</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Controls whether access credentials are embedded in the URL (default) or</span>
+<span class="w">    </span><span class="sd">"""Controls whether access credentials are embedded in the URL (default) or</span>
 <span class="sd">    issued as signed cookies.  See :class:`~granite_assets.enums.CfSigningMethod`.</span>
 
 <span class="sd">    - ``URL``    – :meth:`build_download_url` returns a CloudFront signed URL</span>
@@ -486,36 +486,36 @@
 <span class="sd">    - ``COOKIE`` – :meth:`build_download_url` returns a plain (unsigned)</span>
 <span class="sd">      CloudFront URL.  The caller must first obtain cookies via</span>
 <span class="sd">      :meth:`build_signed_cookies` and set them on the browser.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">use_object_acl</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;When ``True`` (default), ``PutObject`` requests include an S3 object ACL</span>
+<span class="w">    </span><span class="sd">"""When ``True`` (default), ``PutObject`` requests include an S3 object ACL</span>
 <span class="sd">    (``public-read`` for public assets, none for private).  Set to ``False``</span>
 <span class="sd">    when the bucket has *Object Ownership* = ``BucketOwnerEnforced`` and ACLs</span>
 <span class="sd">    are disabled — visibility is then expressed solely via key prefix and bucket</span>
-<span class="sd">    policy / CloudFront OAC rather than per-object ACLs.&quot;&quot;&quot;</span>
+<span class="sd">    policy / CloudFront OAC rather than per-object ACLs."""</span>
 
 <div class="viewcode-block" id="S3AssetRepositoryConfig.presign_ttl">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.presign_ttl">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">presign_ttl</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">timedelta</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenience accessor returning the TTL as a :class:`timedelta`.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Convenience accessor returning the TTL as a :class:`timedelta`."""</span>
         <span class="k">return</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">presign_ttl_seconds</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="S3AssetRepositoryConfig.has_cf_signing">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.has_cf_signing">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">has_cf_signing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when both CloudFront signing fields are present.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Return True when both CloudFront signing fields are present."""</span>
         <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cf_key_id</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_private_key</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="S3AssetRepositoryConfig.has_cf_unsigned_url">
 <a class="viewcode-back" href="../../api/models.html#granite_assets.models.S3AssetRepositoryConfig.has_cf_unsigned_url">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">has_cf_unsigned_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when plain (unsigned) CloudFront URL delivery is active.</span>
+<span class="w">        </span><span class="sd">"""Return True when plain (unsigned) CloudFront URL delivery is active.</span>
 
 <span class="sd">        Requires ``cf_unsigned_urls=True`` *and* ``public_base_url`` to be set.</span>
 <span class="sd">        ``has_cf_signing()`` takes precedence over this flag.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cf_unsigned_urls</span> <span class="ow">and</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">public_base_url</span><span class="p">)</span></div>
 </div>
 

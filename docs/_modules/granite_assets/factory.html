@@ -86,12 +86,12 @@
            <div itemprop="articleBody">
              
   <h1>Source code for granite_assets.factory</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Lightweight factory for building asset repositories from config objects.</span>
+<span></span><span class="sd">"""Lightweight factory for building asset repositories from config objects.</span>
 
 <span class="sd">The factory pattern is intentionally minimal: it avoids string-based dispatch</span>
 <span class="sd">and keeps full type safety — the return type is narrowed to the concrete class</span>
 <span class="sd">so IDEs and type checkers benefit without needing ``cast``.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
@@ -122,7 +122,7 @@
 <div class="viewcode-block" id="build_asset_repository">
 <a class="viewcode-back" href="../../api/factory.html#granite_assets.factory.build_asset_repository">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">build_asset_repository</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">AnyConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instantiate the correct repository for the given configuration object.</span>
+<span class="w">    </span><span class="sd">"""Instantiate the correct repository for the given configuration object.</span>
 
 <span class="sd">    The returned type is narrowed by overloads — type checkers will infer the</span>
 <span class="sd">    concrete class when the config type is known at the call site.</span>
@@ -142,9 +142,9 @@
 <span class="sd">    Example::</span>
 
 <span class="sd">        repo = build_asset_repository(</span>
-<span class="sd">            S3AssetRepositoryConfig(bucket=&quot;my-bucket&quot;, region=&quot;eu-west-1&quot;)</span>
+<span class="sd">            S3AssetRepositoryConfig(bucket="my-bucket", region="eu-west-1")</span>
 <span class="sd">        )</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">LocalNginxAssetRepositoryConfig</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">LocalNginxAssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
@@ -154,8 +154,8 @@
         <span class="k">return</span> <span class="n">S3AssetRepository</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
 
     <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s2">&quot;Unsupported configuration type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">!r}</span><span class="s2">. &quot;</span>
-        <span class="s2">&quot;Expected LocalNginxAssetRepositoryConfig or S3AssetRepositoryConfig.&quot;</span>
+        <span class="sa">f</span><span class="s2">"Unsupported configuration type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">!r}</span><span class="s2">. "</span>
+        <span class="s2">"Expected LocalNginxAssetRepositoryConfig or S3AssetRepositoryConfig."</span>
     <span class="p">)</span></div>
 
 </pre></div>

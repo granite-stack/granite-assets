@@ -86,26 +86,26 @@
            <div itemprop="articleBody">
              
   <h1>Source code for granite_assets.exceptions</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Exceptions raised by granite-assets repositories.&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""Exceptions raised by granite-assets repositories."""</span>
 
 
 <div class="viewcode-block" id="AssetError">
 <a class="viewcode-back" href="../../api/exceptions.html#granite_assets.exceptions.AssetError">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for all granite-assets errors.&quot;&quot;&quot;</span></div>
+<span class="w">    </span><span class="sd">"""Base exception for all granite-assets errors."""</span></div>
 
 
 
 <div class="viewcode-block" id="AssetNotFoundError">
 <a class="viewcode-back" href="../../api/exceptions.html#granite_assets.exceptions.AssetNotFoundError">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetNotFoundError</span><span class="p">(</span><span class="n">AssetError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when an asset key does not exist in the repository.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Raised when an asset key does not exist in the repository."""</span>
 
 <div class="viewcode-block" id="AssetNotFoundError.__init__">
 <a class="viewcode-back" href="../../api/exceptions.html#granite_assets.exceptions.AssetNotFoundError.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Asset not found: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Asset not found: </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span></div>
 </div>
 
 
@@ -113,12 +113,12 @@
 <div class="viewcode-block" id="AssetAccessNotSupportedError">
 <a class="viewcode-back" href="../../api/exceptions.html#granite_assets.exceptions.AssetAccessNotSupportedError">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetAccessNotSupportedError</span><span class="p">(</span><span class="n">AssetError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when the requested URL type is not supported by this backend.</span>
+<span class="w">    </span><span class="sd">"""Raised when the requested URL type is not supported by this backend.</span>
 
 <span class="sd">    For example, ``build_upload_url`` on a local-nginx repository will raise</span>
 <span class="sd">    this because there is no built-in mechanism to generate a pre-signed upload</span>
 <span class="sd">    endpoint from a plain filesystem.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="AssetAccessNotSupportedError.__init__">
 <a class="viewcode-back" href="../../api/exceptions.html#granite_assets.exceptions.AssetAccessNotSupportedError.__init__">[docs]</a>
@@ -126,7 +126,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">backend</span> <span class="o">=</span> <span class="n">backend</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">operation</span> <span class="o">=</span> <span class="n">operation</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Operation </span><span class="si">{</span><span class="n">operation</span><span class="si">!r}</span><span class="s2"> is not supported by backend </span><span class="si">{</span><span class="n">backend</span><span class="si">!r}</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">"Operation </span><span class="si">{</span><span class="n">operation</span><span class="si">!r}</span><span class="s2"> is not supported by backend </span><span class="si">{</span><span class="n">backend</span><span class="si">!r}</span><span class="s2">"</span>
         <span class="p">)</span></div>
 </div>
 
@@ -135,7 +135,7 @@
 <div class="viewcode-block" id="AssetConfigurationError">
 <a class="viewcode-back" href="../../api/exceptions.html#granite_assets.exceptions.AssetConfigurationError">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssetConfigurationError</span><span class="p">(</span><span class="n">AssetError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a repository is misconfigured (missing field, bad value, etc.).&quot;&quot;&quot;</span></div>
+<span class="w">    </span><span class="sd">"""Raised when a repository is misconfigured (missing field, bad value, etc.)."""</span></div>
 
 </pre></div>
 

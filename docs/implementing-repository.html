@@ -187,7 +187,7 @@ the method signatures and exception mapping you need to implement.</p>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">AzureBlobAssetRepository</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Azure Blob Storage implementation of IAssetRepository.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Azure Blob Storage implementation of IAssetRepository."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">AzureBlobAssetRepositoryConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">azure.storage.blob</span><span class="w"> </span><span class="kn">import</span> <span class="n">BlobServiceClient</span>
@@ -246,7 +246,7 @@ the method signatures and exception mapping you need to implement.</p>
         <span class="n">props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_blob</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">get_blob_properties</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">AssetDescriptor</span><span class="p">(</span>
             <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
-            <span class="n">content_type</span><span class="o">=</span><span class="n">props</span><span class="o">.</span><span class="n">content_settings</span><span class="o">.</span><span class="n">content_type</span> <span class="ow">or</span> <span class="s2">&quot;application/octet-stream&quot;</span><span class="p">,</span>
+            <span class="n">content_type</span><span class="o">=</span><span class="n">props</span><span class="o">.</span><span class="n">content_settings</span><span class="o">.</span><span class="n">content_type</span> <span class="ow">or</span> <span class="s2">"application/octet-stream"</span><span class="p">,</span>
             <span class="n">content_length</span><span class="o">=</span><span class="n">props</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
             <span class="n">visibility</span><span class="o">=</span><span class="n">AssetVisibility</span><span class="o">.</span><span class="n">PUBLIC</span><span class="p">,</span>  <span class="c1"># inspect ACLs for a real impl</span>
             <span class="n">last_modified</span><span class="o">=</span><span class="n">props</span><span class="o">.</span><span class="n">last_modified</span><span class="p">,</span>
@@ -260,7 +260,7 @@ the method signatures and exception mapping you need to implement.</p>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">build_public_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_public_base_url</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_public_base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_public_base_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_blob</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">url</span>
         <span class="k">return</span> <span class="n">AssetAccessUrl</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">expires_at</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
@@ -272,7 +272,7 @@ the method signatures and exception mapping you need to implement.</p>
         <span class="n">ttl</span> <span class="o">=</span> <span class="n">ttl_seconds</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_presign_ttl</span>
         <span class="n">expiry</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">ttl</span><span class="p">)</span>
         <span class="c1"># Real implementation: generate SAS token here</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;generate SAS token and return AssetAccessUrl&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"generate SAS token and return AssetAccessUrl"</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">build_upload_url</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -281,7 +281,7 @@ the method signatures and exception mapping you need to implement.</p>
         <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UploadUrlResult</span><span class="p">:</span>
         <span class="c1"># Azure uses SAS tokens for presigned PUT equivalent</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;generate SAS upload URL here&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"generate SAS upload URL here"</span><span class="p">)</span>
 
 
 <span class="c1"># ---------------------------------------------------------------------------</span>

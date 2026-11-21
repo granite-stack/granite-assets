@@ -142,10 +142,10 @@ omit boto3 from your image and only import <code class="docutils literal notrans
 <h2>Database Migrations Extra<a class="headerlink" href="#database-migrations-extra" title="Link to this heading"></a></h2>
 <p>If you want to run granite-assets’ built-in Alembic migrations from your host
 application (for future asset metadata storage), install the <code class="docutils literal notranslate"><span class="pre">db</span></code> extra:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;granite-assets[db]&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"granite-assets[db]"</span>
 
 <span class="c1"># or with uv:</span>
-uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;granite-assets[db]&quot;</span>
+uv<span class="w"> </span>add<span class="w"> </span><span class="s2">"granite-assets[db]"</span>
 </pre></div>
 </div>
 <p>This pulls in <code class="docutils literal notranslate"><span class="pre">sqlalchemy&gt;=2.0</span></code> and <code class="docutils literal notranslate"><span class="pre">alembic&gt;=1.13</span></code>.  See
