@@ -176,9 +176,11 @@ to generate signed URLs (download via <code class="docutils literal notranslate"
 <section id="docker-compose-manual-development">
 <h3><a class="toc-backref" href="#id7" role="doc-backlink">Docker Compose (manual / development)</a><a class="headerlink" href="#docker-compose-manual-development" title="Link to this heading"></a></h3>
 <p>The repository ships a ready-to-use compose file:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Copy the env template and set both secrets</span>
-cp<span class="w"> </span>.env.nginx-example<span class="w"> </span>.env.nginx
-<span class="nv">$EDITOR</span><span class="w"> </span>.env.nginx
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Copy the env template and set both secrets. Generate a NEW random</span>
+<span class="c1">#    value for each one (never reuse a secret from another environment):</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"SECURE_LINK_SECRET=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="k">)</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="w">  </span>.env.nginx
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"UPLOAD_SECRET=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="k">)</span><span class="s2">"</span><span class="w">      </span>&gt;&gt;<span class="w"> </span>.env.nginx
+<span class="c1"># .env.nginx is git-ignored: never commit it.</span>
 
 <span class="c1"># 2. Start both services</span>
 docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.nginx-manual.yml<span class="w"> </span>--env-file<span class="w"> </span>.env.nginx<span class="w"> </span>up

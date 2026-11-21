@@ -9,9 +9,10 @@
 #
 # Usage
 # -----
-#   1. Copy .env.nginx-example to .env.nginx and fill in both secrets:
+#   1. Copy .env.nginx.example to .env.nginx and fill in both secrets
+#      with NEW random values (openssl rand -hex 32); never commit .env.nginx:
 #
-#        cp .env.nginx-example .env.nginx
+#        cp .env.nginx.example .env.nginx
 #        $EDITOR .env.nginx
 #
 #   2. Start both services:

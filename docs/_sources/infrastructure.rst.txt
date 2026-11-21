@@ -50,9 +50,11 @@ The repository ships a ready-to-use compose file:
 
 .. code-block:: bash
 
-   # 1. Copy the env template and set both secrets
-   cp .env.nginx-example .env.nginx
-   $EDITOR .env.nginx
+   # 1. Copy the env template and set both secrets. Generate a NEW random
+   #    value for each one (never reuse a secret from another environment):
+   echo "SECURE_LINK_SECRET=$(openssl rand -hex 32)" >  .env.nginx
+   echo "UPLOAD_SECRET=$(openssl rand -hex 32)"      >> .env.nginx
+   # .env.nginx is git-ignored: never commit it.
 
    # 2. Start both services
    docker compose -f docker-compose.nginx-manual.yml --env-file .env.nginx up

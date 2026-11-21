@@ -209,3 +209,6 @@ terraform.rc
 
 # graphify knowledge-graph output (generated)
 graphify-out/
+
+# Local nginx secrets (never commit; see .env.nginx.example)
+.env.nginx
