@@ -48,6 +48,17 @@ omit boto3 from your image and only import ``LocalNginxAssetRepository``.
 .. code-block:: bash
 
    pip install granite-assets   # boto3 included
+   pip install "granite-assets[s3]"   # equivalent, explicit
+
+CloudFront Extra
+----------------
+
+CloudFront signed URLs and signed cookies need RSA signing from
+``cryptography``, which is installed with the ``cloudfront`` extra:
+
+.. code-block:: bash
+
+   pip install "granite-assets[cloudfront]"
 
 Database Migrations Extra
 --------------------------

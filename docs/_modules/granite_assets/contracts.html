@@ -124,6 +124,45 @@
 <span class="p">)</span>
 
 
+<div class="viewcode-block" id="ISignedStreamRepository">
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.ISignedStreamRepository">[docs]</a>
+<span class="nd">@runtime_checkable</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ISignedStreamRepository</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Optional capability: CloudFront-style folder/stream signing.</span>
+
+<span class="sd">    Implemented by :class:`~granite_assets.repositories.s3.S3AssetRepository`.</span>
+<span class="sd">    Consumers can check ``isinstance(repo, ISignedStreamRepository)`` instead</span>
+<span class="sd">    of importing the concrete class and calling private helpers.</span>
+<span class="sd">    """</span>
+
+<div class="viewcode-block" id="ISignedStreamRepository.cf_base_url">
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.ISignedStreamRepository.cf_base_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cf_base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span> <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="ISignedStreamRepository.s3_key">
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.ISignedStreamRepository.s3_key">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">s3_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span> <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="ISignedStreamRepository.cf_object_url">
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.ISignedStreamRepository.cf_object_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cf_object_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span> <span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="ISignedStreamRepository.build_path_signed_url">
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.ISignedStreamRepository.build_path_signed_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_path_signed_url</span><span class="p">(</span></div>
+
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">path_pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ttl_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssetAccessUrl</span><span class="p">:</span> <span class="o">...</span></div>
+
+
+
 <div class="viewcode-block" id="IAssetRepository">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository">[docs]</a>
 <span class="nd">@runtime_checkable</span>

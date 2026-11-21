@@ -74,7 +74,8 @@ def upgrade_to_head(database_url: str) -> None:
 
     cfg = Config()
     cfg.set_main_option("script_location", script_location)
-    cfg.set_main_option("sqlalchemy.url", database_url)
+    # ConfigParser interpolates "%"; escape it so URL-encoded passwords work.
+    cfg.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
     logger.debug(
         "granite-assets: running alembic upgrade head on %s",
