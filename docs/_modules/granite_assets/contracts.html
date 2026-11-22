@@ -163,6 +163,25 @@
 
 
 
+<div class="viewcode-block" id="ICdnInvalidationRepository">
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.ICdnInvalidationRepository">[docs]</a>
+<span class="nd">@runtime_checkable</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ICdnInvalidationRepository</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Optional capability: drop the CDN's cached copy of objects that changed.</span>
+
+<span class="sd">    Implemented by :class:`~granite_assets.repositories.s3.S3AssetRepository`</span>
+<span class="sd">    (it needs ``cf_distribution_id``).  Backends without a CDN, such as the local</span>
+<span class="sd">    one, do not implement it, so callers check</span>
+<span class="sd">    ``isinstance(repo, ICdnInvalidationRepository)``.</span>
+<span class="sd">    """</span>
+
+<div class="viewcode-block" id="ICdnInvalidationRepository.invalidate_cache">
+<a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.ICdnInvalidationRepository.invalidate_cache">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">invalidate_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">keys</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span></div>
+</div>
+
+
+
 <div class="viewcode-block" id="IAssetRepository">
 <a class="viewcode-back" href="../../api/contracts.html#granite_assets.contracts.IAssetRepository">[docs]</a>
 <span class="nd">@runtime_checkable</span>

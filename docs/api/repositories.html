@@ -443,6 +443,25 @@ externally.</p></li>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.invalidate_cache">
+<span class="sig-name descname"><span class="pre">invalidate_cache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">keys</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.invalidate_cache"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.invalidate_cache" title="Link to this definition"></a></dt>
+<dd><p>Ask CloudFront to drop its cached copy of <em>keys</em>.</p>
+<p><em>keys</em> are logical keys: the <code class="docutils literal notranslate"><span class="pre">key_prefix</span></code> is applied.  Use it when a
+publicly cached object stops being public or changes under the same key,
+so the edge does not keep serving the stale copy.  Needs
+<code class="docutils literal notranslate"><span class="pre">cf_distribution_id</span></code> and the <code class="docutils literal notranslate"><span class="pre">cloudfront:CreateInvalidation</span></code>
+permission.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetConfigurationError" title="granite_assets.exceptions.AssetConfigurationError"><strong>AssetConfigurationError</strong></a> – if <code class="docutils literal notranslate"><span class="pre">cf_distribution_id</span></code> is not configured.</p></li>
+<li><p><a class="reference internal" href="exceptions.html#granite_assets.exceptions.AssetError" title="granite_assets.exceptions.AssetError"><strong>AssetError</strong></a> – if CloudFront rejects the request.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="granite_assets.repositories.s3.S3AssetRepository.save">
 <span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveRequest" title="granite_assets.models.AssetSaveRequest"><span class="pre">AssetSaveRequest</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="models.html#granite_assets.models.AssetSaveResult" title="granite_assets.models.AssetSaveResult"><span class="pre">AssetSaveResult</span></a></span></span><a class="reference internal" href="../_modules/granite_assets/repositories/s3.html#S3AssetRepository.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#granite_assets.repositories.s3.S3AssetRepository.save" title="Link to this definition"></a></dt>
 <dd><p>Upload an asset to S3.</p>

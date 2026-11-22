@@ -1,9 +1,10 @@
 name: package-release
 
 on:
-  push:
-    branches:
-      - main
+  # Automatic launch disabled for now: the release (and its publication) is started by hand from the Actions tab.
+  # push:
+  #   branches:
+  #     - main
 
   workflow_dispatch:
     inputs:
