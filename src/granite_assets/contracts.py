@@ -61,6 +61,19 @@ class ISignedStreamRepository(Protocol):
 
 
 @runtime_checkable
+class ICdnInvalidationRepository(Protocol):
+    """Optional capability: drop the CDN's cached copy of objects that changed.
+
+    Implemented by :class:`~granite_assets.repositories.s3.S3AssetRepository`
+    (it needs ``cf_distribution_id``).  Backends without a CDN, such as the local
+    one, do not implement it, so callers check
+    ``isinstance(repo, ICdnInvalidationRepository)``.
+    """
+
+    def invalidate_cache(self, *keys: str) -> None: ...
+
+
+@runtime_checkable
 class IAssetRepository(Protocol):
     """Structural interface for asset repositories.
 

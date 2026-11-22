@@ -27,6 +27,7 @@ Design decisions
 from __future__ import annotations
 
 import logging
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
@@ -166,18 +167,24 @@ class S3AssetRepository:
         if not self._cfg.region:
             raise AssetConfigurationError("region must not be empty")
 
-    def _build_client(self, signature_version: str | None = None) -> Any:
-        boto3 = _require_boto3()
-        kwargs: dict[str, Any] = {
-            "region_name": self._cfg.region,
-        }
-        if self._cfg.endpoint_url:
-            kwargs["endpoint_url"] = self._cfg.endpoint_url
+    def _credential_kwargs(self) -> dict[str, Any]:
+        """Explicit credentials of the config (empty: the boto3 chain applies)."""
+        kwargs: dict[str, Any] = {}
         if self._cfg.access_key_id and self._cfg.secret_access_key:
             kwargs["aws_access_key_id"] = self._cfg.access_key_id
             kwargs["aws_secret_access_key"] = self._cfg.secret_access_key
         if self._cfg.session_token:
             kwargs["aws_session_token"] = self._cfg.session_token
+        return kwargs
+
+    def _build_client(self, signature_version: str | None = None) -> Any:
+        boto3 = _require_boto3()
+        kwargs: dict[str, Any] = {
+            "region_name": self._cfg.region,
+            **self._credential_kwargs(),
+        }
+        if self._cfg.endpoint_url:
+            kwargs["endpoint_url"] = self._cfg.endpoint_url
         if signature_version:
             from botocore.config import Config
 
@@ -227,6 +234,43 @@ class S3AssetRepository:
         """
         validate_key(key)
         return f"{self.cf_base_url()}/{quote_key(self.s3_key(key))}"
+
+    def invalidate_cache(self, *keys: str) -> None:
+        """Ask CloudFront to drop its cached copy of *keys*.
+
+        *keys* are logical keys: the ``key_prefix`` is applied.  Use it when a
+        publicly cached object stops being public or changes under the same key,
+        so the edge does not keep serving the stale copy.  Needs
+        ``cf_distribution_id`` and the ``cloudfront:CreateInvalidation``
+        permission.
+
+        Raises:
+            AssetConfigurationError: if ``cf_distribution_id`` is not configured.
+            AssetError: if CloudFront rejects the request.
+        """
+        if not self._cfg.cf_distribution_id:
+            raise AssetConfigurationError(
+                "cf_distribution_id must be set to invalidate the CDN cache"
+            )
+        if not keys:
+            return
+        paths = []
+        for key in keys:
+            _assert_no_leading_slash(key)
+            paths.append(f"/{quote_key(self._s3_key(key))}")
+        try:
+            client = _require_boto3().client("cloudfront", **self._credential_kwargs())
+            client.create_invalidation(
+                DistributionId=self._cfg.cf_distribution_id,
+                InvalidationBatch={
+                    "Paths": {"Quantity": len(paths), "Items": paths},
+                    "CallerReference": uuid.uuid4().hex,
+                },
+            )
+        except Exception as exc:
+            raise AssetError(
+                f"Failed to invalidate the CDN cache for {len(paths)} path(s): {exc}"
+            ) from exc
 
     def _cf_base_url(self) -> str:
         """Backward-compatible alias of :meth:`cf_base_url`."""

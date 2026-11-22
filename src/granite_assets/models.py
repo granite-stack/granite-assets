@@ -376,6 +376,12 @@ class S3AssetRepositoryConfig:
 
     ``has_cf_signing()`` takes precedence: if both signing keys and this flag
     are set, CloudFront signed URLs are used."""
+    cf_distribution_id: str | None = None
+    """ID of the CloudFront distribution in front of the bucket
+    (``E1ABCDEF234567``).  Needed only by
+    :meth:`S3AssetRepository.invalidate_cache`, which drops the cached copies of
+    objects whose visibility or content changed.  Requires the
+    ``cloudfront:CreateInvalidation`` permission."""
     cf_signing_method: CfSigningMethod = CfSigningMethod.URL
     """Controls whether access credentials are embedded in the URL (default) or
     issued as signed cookies.  See :class:`~granite_assets.enums.CfSigningMethod`.

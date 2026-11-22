@@ -850,3 +850,121 @@ def test_build_folder_signed_url_requires_cf_config(
 
     with pytest.raises(AssetConfigurationError):
         repo.build_folder_signed_url(_ASSET_KEY, entry_filename="master.m3u8")
+
+
+# ---------------------------------------------------------------------------
+# CDN cache invalidation
+# ---------------------------------------------------------------------------
+
+
+class _FakeCloudFront:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.calls: list[dict] = []
+        self._error = error
+
+    def create_invalidation(self, **kwargs: object) -> dict:
+        if self._error is not None:
+            raise self._error
+        self.calls.append(dict(kwargs))
+        return {}
+
+
+@pytest.fixture()
+def fake_cloudfront(monkeypatch: pytest.MonkeyPatch) -> _FakeCloudFront:
+    """Route ``boto3.client("cloudfront")`` to a recorder; S3 stays on moto."""
+    fake = _FakeCloudFront()
+    real_client = boto3.client
+
+    def _client(service: str, **kwargs: object):  # type: ignore[no-untyped-def]
+        return fake if service == "cloudfront" else real_client(service, **kwargs)
+
+    monkeypatch.setattr(boto3, "client", _client)
+    return fake
+
+
+def _invalidating_repo(**overrides: object) -> S3AssetRepository:
+    return S3AssetRepository(
+        S3AssetRepositoryConfig(
+            bucket=BUCKET,
+            region=REGION,
+            **{"cf_distribution_id": "E1ABCDEF234567", **overrides},  # type: ignore[arg-type]
+        )
+    )
+
+
+@mock_aws
+def test_invalidate_cache_sends_the_prefixed_percent_encoded_paths(
+    aws_credentials: None, fake_cloudfront: _FakeCloudFront
+) -> None:
+    repo = _invalidating_repo(key_prefix="uploads/")
+
+    repo.invalidate_cache("public/a b.png", "public/c.png")
+
+    (call,) = fake_cloudfront.calls
+    assert call["DistributionId"] == "E1ABCDEF234567"
+    batch = call["InvalidationBatch"]
+    assert batch["Paths"] == {
+        "Quantity": 2,
+        "Items": ["/uploads/public/a%20b.png", "/uploads/public/c.png"],
+    }
+
+
+@mock_aws
+def test_each_invalidation_has_its_own_caller_reference(
+    aws_credentials: None, fake_cloudfront: _FakeCloudFront
+) -> None:
+    repo = _invalidating_repo()
+
+    repo.invalidate_cache("public/a.png")
+    repo.invalidate_cache("public/a.png")
+
+    references = {
+        c["InvalidationBatch"]["CallerReference"] for c in fake_cloudfront.calls
+    }
+    assert len(references) == 2
+
+
+@mock_aws
+def test_invalidate_cache_without_keys_calls_nothing(
+    aws_credentials: None, fake_cloudfront: _FakeCloudFront
+) -> None:
+    _invalidating_repo().invalidate_cache()
+    assert fake_cloudfront.calls == []
+
+
+@mock_aws
+def test_invalidate_cache_needs_a_distribution(aws_credentials: None) -> None:
+    from granite_assets.exceptions import AssetConfigurationError
+
+    repo = S3AssetRepository(S3AssetRepositoryConfig(bucket=BUCKET, region=REGION))
+    with pytest.raises(AssetConfigurationError, match="cf_distribution_id"):
+        repo.invalidate_cache("public/a.png")
+
+
+@mock_aws
+def test_invalidate_cache_refuses_a_leading_slash(
+    aws_credentials: None, fake_cloudfront: _FakeCloudFront
+) -> None:
+    from granite_assets.exceptions import AssetError
+
+    with pytest.raises(AssetError):
+        _invalidating_repo().invalidate_cache("/public/a.png")
+    assert fake_cloudfront.calls == []
+
+
+@mock_aws
+def test_a_cloudfront_failure_stays_inside_the_library_hierarchy(
+    aws_credentials: None, fake_cloudfront: _FakeCloudFront
+) -> None:
+    from granite_assets.exceptions import AssetError
+
+    fake_cloudfront._error = RuntimeError("AccessDenied")
+    with pytest.raises(AssetError, match="Failed to invalidate"):
+        _invalidating_repo().invalidate_cache("public/a.png")
+
+
+@mock_aws
+def test_the_repository_advertises_the_capability(aws_credentials: None) -> None:
+    from granite_assets.contracts import ICdnInvalidationRepository
+
+    assert isinstance(_invalidating_repo(), ICdnInvalidationRepository)

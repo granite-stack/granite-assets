@@ -289,6 +289,23 @@ location /assets/private/ {
 | `access_key_id` | `str \| None` | `None` | Explicit AWS credentials (falls back to boto3 chain) |
 | `secret_access_key` | `str \| None` | `None` | Explicit AWS credentials |
 | `session_token` | `str \| None` | `None` | STS session token |
+| `cf_distribution_id` | `str \| None` | `None` | CloudFront distribution ID; needed by `invalidate_cache` |
+
+### Invalidating the CDN cache
+
+When a publicly cached object stops being public (or changes under the same key), ask CloudFront to drop its copy:
+
+```python
+repo = S3AssetRepository(S3AssetRepositoryConfig(
+    bucket="my-assets", region="eu-west-1", key_prefix="uploads/",
+    public_base_url="https://cdn.example.com", cf_distribution_id="E1ABCDEF234567",
+))
+repo.invalidate_cache("public/logo.png")   # invalidates /uploads/public/logo.png
+```
+
+Keys are logical (the `key_prefix` is applied and the path is percent-encoded). It needs the
+`cloudfront:CreateInvalidation` permission. Failures raise `AssetError`; a repository without a CDN (the local one)
+does not implement it, so check `isinstance(repo, ICdnInvalidationRepository)` (from `granite_assets.contracts`).
 
 ---
 
